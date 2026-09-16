@@ -138,7 +138,7 @@ Processを毎回ゼロから構築させない。
 
 一般的な処理骨格については、アプリ側に**初期理解用Process Template**を用意する。
 
-MVPでは6種類程度を想定する。
+MVPでは以下の7種類とCustomを正式なTemplateとして扱う。
 
 例：
 
@@ -192,7 +192,9 @@ Return
 
 ### External Integration
 
-必要に応じてEvent / Background Processingを追加する。
+### Event / Background Processing
+
+### Custom
 
 Templateは答えではなく、
 
@@ -830,7 +832,9 @@ Feature全体ではなくProcess / Symbol単位で部分的にStaleにできる�
 
 # 27. User Contextの編集
 
-ユーザーはFeature Context内のSemantic ContextやUser Contextを編集できる。
+Feature Context自体はSYSTEMが生成するProjection / Context Cacheであり、ユーザーが直接編集する正本ではない。
+
+ユーザーは、Feature、Process、DataFlow、SemanticRelation、Memo、UserExplanation、SemanticLinkを正本として編集する。Feature Contextはこれらの正本からSYSTEMが再構築する。
 
 ただしCode Fact自体は編集対象にしない。
 
@@ -1151,7 +1155,7 @@ Indirect Prompt Injectionを考慮する。
 * AI Coding Agent
 * Terminal
 * Debugger
-* Git write操作
+* Source RepositoryへのGit write操作
 * Repository全体のAI自動Wiki
 * 完全自動Feature確定
 * 完全自動Process確定
@@ -1191,7 +1195,7 @@ Supported Languagesを限定
 
 と分ける。
 
-具体的対応言語はこれからの要件・PoCで確定する。
+MVPのCore LanguageはTypeScript、Python、PHPとする。Framework-aware解析はReact、Next.js、Django、FastAPI、CakePHP、Laravelを対象とする。
 
 ---
 
@@ -1277,22 +1281,22 @@ User ContextをStale表示
 
 | 項目                    | 状態                      |
 | --------------------- | ----------------------- |
-| MVP対応言語               | 未決                      |
-| 対応OS                  | 未決                      |
+| MVP対応言語               | TypeScript / Python / PHPに確定 |
+| 対応OS                  | macOS / Windowsに確定。LinuxはMVP外 |
 | Feature作成・編集仕様        | 詳細未決                    |
 | 面の初期Feature生成方法       | 詳細未決                    |
-| Process Template正式一覧  | 概ね決定、詳細未決               |
-| Process Primitive正式一覧 | 概ね決定                    |
-| Relation Type正式一覧     | 未確定                     |
-| Data Flow入力UI         | 未決                      |
+| Process Template正式一覧  | 7種類 + Customに確定          |
+| Process Primitive正式一覧 | 確定                      |
+| Relation Type正式一覧     | Structural / Semanticともに確定 |
+| Data Flow入力UI         | データ項目・所有権は確定、操作詳細は未決 |
 | Symbol候補ranking条件     | 方針確定、重み未決               |
 | AI Context Budget     | PoC事項                   |
 | Graphの抽象化UI           | 未決                      |
 | Memo付与可能単位            | Symbol中心、Expression等は未決 |
-| Understanding State   | 方針確定、詳細未決               |
-| Feature Context保存形式   | 未決                      |
+| Understanding State   | 独立軸モデルに確定               |
+| Feature Context保存形式   | Projection / Chunk / Snapshot方針に確定、物理形式は未決 |
 | Context履歴保存期間         | 未決                      |
-| Git過去commit学習UI       | 未決                      |
+| Git過去commit学習UI       | First Parent・Relevant History方針は確定、操作詳細は未決 |
 | Local保存方法             | 技術設計事項                  |
 | AIモデル                 | 未決・詳細設計事項               |
 
@@ -1313,3 +1317,731 @@ User ContextをStale表示
 * Liu et al., *Lost in the Middle: How Language Models Use Long Contexts*, Transactions of the ACL, 2024. 長いContextへすべての情報を投入しても有効利用が保証されず、関連Context選択が重要であることを示しています。
 * Zhang et al., *RepoCoder: Repository-Level Code Completion Through Iterative Retrieval and Generation*, EMNLP, 2023. Repository全文ではなく関連Contextを反復的に取得する方式を提案。
 * Saltzer & Schroeder, *The Protection of Information in Computer Systems*, Proceedings of the IEEE, 1975. Least PrivilegeやComplete Mediationなど、権限制御をシステム境界で強制する設計原則の基礎。
+
+---
+
+# 45. 確定要件追補
+
+本章以降は、その後の設計議論で確定した要件をまとめた追補である。前章までの記述と矛盾する場合は、本追補を優先する。
+
+## 45.1 MVP対応範囲
+
+| 項目 | 確定内容 |
+| --- | --- |
+| 対応OS | macOS / Windows。LinuxはMVP外 |
+| Core Language | TypeScript / Python / PHP |
+| Framework-aware | React / Next.js / Django / FastAPI / CakePHP / Laravel |
+| 解析Tier | Tier A: Deterministic、Tier B: Framework-aware、Tier C: Inferred / Dynamic |
+| Tier A精度目標 | Precision 98%以上、Recall 95%以上 |
+| Tier B精度目標 | Precision 95%以上、Recall 85%以上 |
+
+精度目標はPoCで検証する目標値である。誤検出より`UNKNOWN`を優先し、`UNKNOWN`を一級状態として扱う。
+
+## 45.2 Process / Relation / Data Flow
+
+Process Templateは次の7種類とCustomに確定する。
+
+```text
+Create
+Read
+Update
+Delete / State Change
+Authentication
+External Integration
+Event / Background Processing
+Custom
+```
+
+Process Primitiveは次のとおりとする。
+
+```text
+Receive / Identify / Retrieve / Validate / Authorize
+Transform / Execute / Persist / Notify-Emit / Return
+```
+
+MVPでは`1 Process = 1 Feature`とし、Processを複数Featureへ所属させない。
+
+Relationは構造的事実と意味的関係を分離する。
+
+```text
+Structural Relation:
+CALLS / IMPLEMENTS / INJECTS / READS / WRITES
+
+Semantic Relation:
+NEXT / DATA / USES / DEPENDS_ON
+```
+
+Structural RelationからSemantic Relationへの自動変換は行わない。
+
+Data Flowは以下を保持する。
+
+```text
+Data Name: 必須
+Transformation: 任意
+Type / Symbol Link: 任意
+Evidence: 0..N
+```
+
+Data FlowのVerificationとFreshnessは別軸で管理する。USERが正本を作成し、AIはHintまたはProposalのみを生成できる。
+
+# 46. Feature / Process状態モデル
+
+状態を巨大な単一enumにせず、独立した軸として管理する。
+
+Featureは次の状態軸を持つ。
+
+```text
+Origin:
+SYSTEM / AI / USER
+
+Confirmation:
+CANDIDATE / CONFIRMED
+
+Scope:
+IN_SCOPE / OUT_OF_SCOPE
+
+Freshness:
+CURRENT / PARTIALLY_STALE / STALE
+
+Evidence:
+UNVERIFIED / EVIDENCED / QUESTIONABLE / CONTRADICTED
+```
+
+Processも同様に、次の独立軸を持つ。
+
+```text
+Origin:
+TEMPLATE / AI / USER
+
+Confirmation:
+UNCONFIRMED / CONFIRMED
+
+Freshness:
+CURRENT / STALE
+
+Evidence:
+UNVERIFIED / EVIDENCED / QUESTIONABLE / CONTRADICTED
+```
+
+Feature Candidateに対して、ユーザーは採用、Renameして採用、非表示を選択できる。AIがCandidateを直接`CONFIRMED`へ変更することは禁止する。
+
+# 47. User ExplanationのVerification
+
+User Explanationを保存した時点では`UNVERIFIED`とし、保存を契機にAI Verificationを自動実行しない。
+
+ユーザーが`コードと照合する`を明示的に実行した場合のみ、次のように遷移する。
+
+```text
+UNVERIFIED
+↓
+VERIFYING
+↓
+CONSISTENT / QUESTIONABLE / CONTRADICTED
+```
+
+説明本文を編集した場合は再び`UNVERIFIED`とする。コードだけが変更された場合は、過去のVerification結果と現在の鮮度を分離して保持できる。
+
+```text
+verification = CONSISTENT
+freshness = STALE
+```
+
+# 48. Feature Contextの位置付け
+
+Feature Contextはユーザーの正本ではなく、SYSTEMが生成するProjection / Context Cacheとして扱う。
+
+ユーザーが編集する正本は以下である。
+
+```text
+Feature
+Process
+DataFlow
+SemanticRelation
+Memo
+UserExplanation
+SemanticLink
+```
+
+SYSTEMはこれらの正本から、次の構造を再構築する。
+
+```text
+FeatureContext
+└ FeatureContextChunk
+```
+
+Chunkは次の種類に分割する。
+
+```text
+FEATURE_SUMMARY
+PROCESS
+DATA
+RELATION
+USER_CONTEXT
+```
+
+Feature ContextはSnapshot単位でVersionを持ち、部分的な`STALE`を許容する。
+
+# 49. GitとLearning Log Repository
+
+Source Repositoryは引き続きread-onlyとし、Git writeを禁止する。
+
+一方、CodeContour専用のLearning Log Repositoryには、ユーザーの明示操作に限りcommit / pushを許可する。
+
+```text
+Source Repository:
+READ ONLY
+
+Learning Log Repository:
+WRITE ALLOWED by explicit user action
+```
+
+Git時間軸は次の3状態を正式にサポートする。
+
+```text
+Working Tree
+HEAD
+Historical Commit
+```
+
+Historical Commitはcheckoutせず、Git Objectから読み取る。MVPのBefore / After比較はFirst Parent基準とする。
+
+Feature / Process / SymbolごとにRelevant Historyを提供し、Previous / Next Relevant Commitへ移動できるようにする。
+
+# 50. Learning機能
+
+## 50.1 Learning Session
+
+1つのLearning Sessionは、1 Projectと1 Primary Featureで構成する。
+
+```text
+1 Learning Session
+= 1 Project
++ 1 Primary Feature
+```
+
+Sessionはユーザーが明示的に開始・終了する。関連Featureの参照は可能だが、Primary Featureは1つとする。
+
+記録対象はクリック数などの操作量ではなく、次の学習成果Eventである。
+
+```text
+Explanation Created / Revised
+Data Flow Evidenced
+Dependency Confirmed
+Change Impact Predicted
+Process Confirmed
+Contradiction Rechecked
+```
+
+クリック数、Scroll、検索回数、AI質問回数は能力Evidenceにしない。
+
+## 50.2 Learning Record
+
+Learning RecordはSession終了時に確定し、保存後は原則Immutableとする。
+
+```text
+Project
+Primary Feature
+CodeSnapshot
+User Reflection
+Evidence
+開始・終了時刻
+```
+
+# 51. GitHub Learning Log
+
+Learning RecordからMarkdownを生成し、Learning Log Repositoryへcommit / pushできる。
+
+```text
+CodeContour
+↓
+Learning Record
+↓
+Learning Log Repository
+↓
+commit / push
+↓
+GitHub
+```
+
+GitHub Contribution Graphは継続性を補助するEvidenceとして扱うが、Engineering Radarの能力Levelへ直接加算しない。
+
+AIはcommit / push Capabilityを持たず、実行はユーザーの明示操作に限定する。
+
+Git同期状態はLearningRecord本体へ持たせず、`LearningLogSync`として別Entityにする。Push再試行履歴はappend-onlyで保持する。
+
+# 52. Engineering Evidence / Engineering Radar
+
+Engineering Radarは次の5軸を正式採用する。
+
+```text
+コード理解
+データフロー
+依存・変更影響
+システム俯瞰
+説明・検証
+```
+
+各軸のLevelは0から5とする。ただしLevelを直接保存・編集せず、EvidenceとRubricからProjectionとして計算する。
+
+```text
+SkillEvidence
++ SkillRubric
+↓
+EngineeringProfile Projection
+↓
+Radar
+```
+
+Skill判定は件数の単純加算ではなくRule Gate方式とし、高いLevelほどBreadthを要求する。
+
+```text
+Lv1: 1対象
+Lv2: 1 Feature
+Lv3: 複数Process / Evidence
+Lv4: 複数Featureまたは複数Change Scenario
+Lv5: 複数Project
+```
+
+Current Radarには`CURRENT + VERIFIED`のEvidenceのみを使用し、Historical Evidenceは別表示する。
+
+Skill RubricはVersioningする。
+
+```text
+SkillRubric
+
+id
+version
+axis
+level
+conditions
+effectiveFrom
+```
+
+これにより、Level条件を変更した場合も、どのRubricで計算されたか追跡可能にする。
+
+# 53. Public Snapshot / Public Profile
+
+Local Projectを直接公開しない。公開時は次のPipelineを必ず通す。
+
+```text
+Local Project
+↓
+Allowlist抽出
+↓
+Sanitize
+↓
+Secret Scan
+↓
+Preview
+↓
+User明示公開
+↓
+Public Artifact
+```
+
+Public ViewerはLocal Storeを直接参照しない。Working Treeは公開不可とし、公開内容は必ずCommitへ固定する。
+
+公開対象となる「点」は基本的に次の情報とする。
+
+```text
+Symbol
+Role
+User Explanation
+Repository-relative Path
+Commit
+Evidence
+Public Repository Permalink
+```
+
+Source全文は再配信しない。
+
+Public URLはStable URLとImmutable Snapshot URLの2層構造にする。
+
+```text
+Stable URL:
+/p/project/example
+
+Immutable Snapshot URL:
+/p/project/example/snapshots/{snapshotId}
+```
+
+Stable URLは最新のPublished Snapshotを指し、Immutable Snapshot URLは特定の公開Versionを固定表示する。Engineering ProfileもStable HandleとImmutable Snapshotの方式を採用する。
+
+# 54. 認証とLogin Gate
+
+Local利用にログインを要求しない。認証が必要なのは次の外部機能を利用する場合に限る。
+
+```text
+GitHub Learning Log
+Public Snapshot公開
+Public Engineering Profile公開
+将来のCloud Sync
+```
+
+外部機能の操作時にLogin Gateを表示し、認証後は`returnPath`を使って元の操作へ戻す。起動直後にLogin画面を配置しない。
+
+# 55. 画面構成
+
+主要な画面構成は次のとおりとする。
+
+```text
+Concept Overview
+↓
+Project Hub
+↓
+Understanding Workspace
+↓
+Learning
+↓
+Engineering Profile
+```
+
+Understanding Workspaceは共通3ペイン構成とする。
+
+```text
+左: Navigation / List
+中央: Main Canvas
+右: Inspector / Editor
+```
+
+主要Viewは次の3種類とする。
+
+```text
+全体: Feature Map
+流れ: Process / Data Flow
+コード: Read-only Code Viewer
+```
+
+右InspectorはFeature Inspector、Process Inspector、Data Edge Editor、Symbol Contextを兼用する。Code ViewではFile / Symbol Treeを常時表示する。
+
+# 56. Error / Recovery
+
+基本原則は、復旧可能なエラーでは現在画面を維持することである。
+
+次の状態では専用画面へ遷移しない。
+
+```text
+入力Validation
+AI Offline
+UNKNOWN
+STALE
+CONTRADICTED
+通常のNetwork Retry
+```
+
+Recovery専用遷移を使用するのは次の場合とする。
+
+```text
+App Data Recovery
+Repository Reconnect
+Authentication
+Git Conflict
+GitHub Repository再設定
+```
+
+Recovery後は`returnPath`へ戻す。
+
+# 57. Undo / Redo
+
+Session内のUser Context編集について、次の操作にUndo / Redoを提供する。
+
+```text
+Process Add / Delete / Rename / Reorder
+Process Split / Merge
+Data Flow編集
+Semantic Relation編集
+```
+
+複合変更は`UserCommand`単位でAtomicに戻す。Git PushやPublic Publishなど外部Side EffectはUndo対象外とする。
+
+# 58. 論理データモデル
+
+主要Entityは次のとおりとする。
+
+```text
+RepositoryBinding
+ProjectSecurityPolicy
+CodeSnapshot
+FileSnapshot
+SourceAnchor
+SymbolOccurrence
+StructuralRelation
+
+Feature
+Process
+ProcessCodeRef
+DataFlow
+
+EvidenceRef
+EvidenceBinding
+
+SemanticRelation
+Memo
+UserExplanation
+SemanticLink
+
+FeatureContext
+FeatureContextChunk
+
+AIProposal
+
+LearningSession
+LearningEvent
+LearningRecord
+LearningRecordEvidence
+LearningLogSync
+
+SkillEvidence
+SkillRubric
+
+PublicProject
+PublicSnapshot
+PublicSnapshotItem
+
+PublicEngineeringProfile
+PublicProfileSnapshot
+```
+
+主要なCardinalityは次のとおりとする。
+
+```text
+Project 1:N RepositoryBinding
+※ ACTIVEは最大1
+
+Project 1:N CodeSnapshot
+Project 1:N Feature
+Feature 1:N Process
+Process N:M SourceAnchor via ProcessCodeRef
+Feature 1:N DataFlow
+SourceAnchor 1:N SymbolOccurrence
+LearningSession 1:0..1 LearningRecord
+LearningRecord N:M EvidenceRef
+LearningRecord 1:N LearningLogSync
+PublicProject 1:N PublicSnapshot
+```
+
+# 59. Delete / Versioning規則
+
+Delete方式は、Entityの性質に応じて次を使い分ける。
+
+```text
+ARCHIVE
+TOMBSTONE
+GC
+PURGE
+REVOKE
+```
+
+Versioning方式は次を使い分ける。
+
+```text
+IMMUTABLE
+REVISIONED
+SNAPSHOT
+REBUILDABLE
+PROJECTION
+```
+
+代表的な適用例は次のとおりである。
+
+```text
+LearningRecord: IMMUTABLE
+UserExplanation: REVISIONED
+CodeSnapshot: SNAPSHOT
+FeatureContext: REBUILDABLE / SNAPSHOT
+EngineeringProfile: PROJECTION
+```
+
+# 60. Write権限境界
+
+Write権限を次のように分離する。
+
+```text
+ANALYZER
+→ Code Factのみ
+
+AI
+→ AIProposalのみ
+
+USER / Human Write Gateway
+→ User Context
+
+SYSTEM
+→ Verification / Freshness / FeatureContext /
+  LearningEvent / SkillEvidence / Projection
+
+PUBLIC BUILDER
+→ Public Artifact
+
+GIT SYNC
+→ LearningLogSync
+```
+
+AIには`MUTATE_USER_CONTEXT` Capabilityを与えない。
+
+# 61. AI Proposal適用方式
+
+AI Proposalの採用は次の手順で実行する。
+
+```text
+AIProposal
+↓
+User「採用」
+↓
+ChangePlan生成
+↓
+変更Preview
+↓
+User最終確認
+↓
+Human Write Gateway
+↓
+Transaction
+```
+
+Split / Mergeなどで関連DataFlowを判断できない場合、AIが勝手に振り分けず`REVIEW_REQUIRED`とする。複合変更は全成功または全Rollbackとする。
+
+# 62. Change PacketとSTALE伝播
+
+Change Packetは次の種類を持つ。
+
+```text
+SYMBOL_ADDED
+SYMBOL_REMOVED
+SYMBOL_MOVED
+SYMBOL_RENAMED
+BODY_CHANGED
+SIGNATURE_CHANGED
+TYPE_CHANGED
+CALL_RELATION_CHANGED
+INJECTION_CHANGED
+READ_WRITE_CHANGED
+```
+
+STALEは次の向きへ局所的に伝播する。
+
+```text
+Changed Code
+↓
+EvidenceBinding
+↓
+直接関連するUser Context
+↓
+Process等の局所Context
+↓
+Feature aggregate
+```
+
+Featureが`STALE`になったことを理由に、全子要素を`STALE`へ変更する逆伝播は行わない。Move / Rename後もSourceAnchorを再解決できた場合は`CURRENT`を維持できる。
+
+# 63. Evidence Engine
+
+Evidence生成の共通条件は次のとおりとする。
+
+```text
+origin = USER
+verification = VERIFIED / CONSISTENT
+freshness = CURRENT
+AI Proposal only = false
+Evidenceあり
+CONTRADICTEDではない
+```
+
+同一の理解を繰り返し保存してEvidenceが水増しされないよう、Semantic Dedupを行う。
+
+# 64. Event / Guard / Effect
+
+主要な状態変更はすべて次の形式で定義する。
+
+```text
+Event
++ Guard
+→ Effect
+```
+
+Event名はActorを示す接頭辞を付ける。
+
+```text
+USER_...
+AI_...
+SYSTEM_...
+ANALYZER_...
+GIT_...
+PUBLIC_...
+```
+
+共通Guardは次のとおりとする。
+
+```text
+PROJECT_ACTIVE
+USER_HAS_WRITE_AUTHORITY
+TARGET_EXISTS
+BASE_REVISION_MATCHES
+EVENT_NOT_ALREADY_APPLIED
+SECURITY_POLICY_ALLOWS
+```
+
+Guard failure時はUser Contextを変更しない。
+
+State-changing Eventは論理的に次の属性を持つ。
+
+```text
+eventId
+idempotencyKey
+actor
+projectId
+baseRevision
+createdAt
+```
+
+Network Retryなどで同じEventが複数回到着しても、重複Entityを生成しない。
+
+# 65. 正式化する主要Sequence
+
+次のSequenceを正式な設計対象とする。
+
+```text
+Project登録・初回解析
+Feature Candidate採用
+Learning Session開始
+Process / DataFlow / Code理解
+User Explanation保存・照合
+Git変更 → STALE → 再確認
+Learning Session終了・LearningRecord確定
+LearningRecord → SkillEvidence → Radar
+LearningRecord → GitHub Push
+Public Snapshot公開
+```
+
+# 66. Backup / Export
+
+完全Backup / Restoreには`.codecontour`形式を使用し、人間可読ExportにはMarkdownを使用する。
+
+Source Repository自体はBackupへ含めない。Repositoryが利用できない状態でもUser Wiki / Learning Contextを復元し、Source参照は`UNRESOLVED`として保持する。
+
+# 67. 非機能目標
+
+代表Repositoryの想定規模と応答時間の設計目標を次のように定める。
+
+```text
+代表Repository:
+100k LOC以下
+10k files以下
+
+Code表示:
+500ms以下
+
+面 ↔ 線 ↔ 点:
+300ms以下
+
+Symbol Search:
+1s以下
+
+Semantic Link:
+500ms以下
+
+初回Structural Index:
+60s以下
+```
+
+AI処理の待機によって、非AI操作をBlockingしない。
