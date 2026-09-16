@@ -2,6 +2,8 @@
 
 [ドキュメント一覧](README.md) | [設計思想](product-principles.md)
 
+> **MVP Scope:** MVPのAI機能はUser Explanation Verificationだけである。汎用Context Cache、AI Proposalの高度な適用、Process / Data Flow生成は設計を維持したままPOST-MVPとする。
+
 > Feature Context、AI Context、User Context、AI Proposal、Verification、Write権限境界を定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
 

@@ -2,6 +2,12 @@
 
 [ドキュメント一覧](README.md) | [設計思想](product-principles.md)
 
+```text
+Status: DESIGNED / POST-MVP
+```
+
+> 本文書の設計は保持するが、固定MVPの実装対象、依存関係、受入条件には含めない。
+
 > Learning Session、Learning Record、GitHub Learning Log、Skill Evidence、Engineering Radarを定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
 

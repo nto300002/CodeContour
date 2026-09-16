@@ -2,6 +2,8 @@
 
 [ドキュメント一覧](README.md) | [設計思想](product-principles.md)
 
+> **MVP Scope:** 論理モデルは将来Entityを含む全体設計として維持する。Learning、Skill、Public、LearningLogSync関連EntityはDESIGNED / POST-MVPであり、MVPではSQLite上に必要なCore Entityだけを実装する。
+
 > Feature / Process状態、Entity、Cardinality、Versioning、Event / Guard / Effect、主要Sequenceを定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
 

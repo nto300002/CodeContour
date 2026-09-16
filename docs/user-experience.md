@@ -2,6 +2,8 @@
 
 [ドキュメント一覧](README.md) | [設計思想](product-principles.md)
 
+> **MVP Scope:** MVPの主要画面はLocal ProjectとUnderstanding Workspace（面・線・点）に限定する。Learning、Engineering Profile、Login Gate、公開導線はDESIGNED / POST-MVPとする。
+
 > Navigation、理解Scope、基本利用フロー、画面構成、Error / Recovery、Undo / Redoを定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
 

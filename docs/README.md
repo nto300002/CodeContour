@@ -15,7 +15,7 @@ CodeContourの設計・要件ドキュメントです。要件はテーマ別の
 | --- | --- |
 | [product-principles.md](product-principles.md) | プロダクト原則と判断基準 |
 | [product-requirements.md](product-requirements.md) | 面・線・点、Process、Data Flow、Semantic Link |
-| [mvp-scope.md](mvp-scope.md) | MVP対応範囲、非目標、未決事項、性能目標 |
+| [mvp-scope.md](mvp-scope.md) | 固定MVP、受入条件、PoC-0、実装順 |
 | [domain-model.md](domain-model.md) | 状態モデル、Entity、Cardinality、Event、Sequence |
 | [context-and-ai.md](context-and-ai.md) | Feature Context、AI境界、User Context、Proposal |
 | [git-and-staleness.md](git-and-staleness.md) | Git時間軸、変更追跡、STALE伝播 |
@@ -28,5 +28,6 @@ CodeContourの設計・要件ドキュメントです。要件はテーマ別の
 ## 文書の優先順位
 
 - プロダクト判断では[設計思想](product-principles.md)を最上位原則とします。
+- MVPの実装範囲と完了判定では[固定MVP仕様](mvp-scope.md)を優先します。
 - 具体的な振る舞い・状態・境界は各テーマ別仕様を正規仕様とします。
 - [requirements-draft.md](requirements-draft.md)は旧URL互換用の案内ページであり、要件本文の正本ではありません。

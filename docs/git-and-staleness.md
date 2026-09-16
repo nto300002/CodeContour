@@ -2,6 +2,11 @@
 
 [ドキュメント一覧](README.md) | [設計思想](product-principles.md)
 
+```text
+MVP: Working Tree / HEAD差分による局所STALE
+DESIGNED / POST-MVP: Historical Commit、Relevant History、Learning Log Repository
+```
+
 > Git時間軸、Incremental Update、AgeとStaleness、Learning Log Repository、STALE伝播を定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
 

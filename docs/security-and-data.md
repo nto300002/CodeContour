@@ -2,6 +2,8 @@
 
 [ドキュメント一覧](README.md) | [設計思想](product-principles.md)
 
+> **MVP Scope:** Local利用だけを提供し、Account / Loginは不要とする。Cloud連携、公開機能の認証、`.codecontour` Backup / Restore UIはDESIGNED / POST-MVPとする。Repository境界、Ignore Policy、最小AI送信はMVPへ含める。
+
 > Local RepositoryのSecurity Boundary、AI送信、認証、Backup / Exportを定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
 

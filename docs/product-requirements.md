@@ -2,6 +2,8 @@
 
 [ドキュメント一覧](README.md) | [設計思想](product-principles.md)
 
+> **MVP Scope:** MVPでは手動Feature、TemplateのUser編集、手動Data Flow、Code Navigation、User Explanation Verificationに限定する。AIによるProcess / Data Flow / Dependency生成など、本文書に記載された将来機能のMVP適用可否は[固定MVP仕様](mvp-scope.md)を正とする。
+
 > CodeContourの対象ユーザー、中心モデル、Process、Data Flow、Semantic Linkなど、中核となる理解体験を定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
 
