@@ -45,6 +45,10 @@ Gitでtrackedかどうかに関係なく、アプリでは原則読み込まな�
 
 加えて独自のSecurity Ignore Rulesも持つ。
 
+TypeScript解析では、型・Module解決に必要な外部`.d.ts`やModule metadataについて、TypeScript Compiler内部での限定読取りを許可できる。ただし、CodeContourのApplication Index、File Tree、Code Viewer、Search、Semantic Link、AI Contextへ昇格させない。
+
+この例外でもCanonical PathとSecurity Policyを適用する。許可できない外部Pathは読み取らず、解決結果を`UNKNOWN`とする。
+
 ---
 
 ---

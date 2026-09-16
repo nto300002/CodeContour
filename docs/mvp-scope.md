@@ -415,25 +415,25 @@ MVPはMVP-01からMVP-20を満たし、主要E2EをUser Testできる状態に�
 
 ## 17. PoC-0
 
-MVP実装前にTypeScript Structural AnalyzerのPoC-0を実施する。PoC-0では完成UIを作らない。
+MVP実装前に、[PoC-0正式仕様](poc-0-spec.md)に従ってTypeScript Structural Analyzerと最小Vertical Sliceを検証する。
 
 ```text
-TypeScript Repository
+単一tsconfigのTypeScript Project
 ↓
 Structural Index
 ↓
-Function一覧
+Manual Feature / Process / Data Flow
 ↓
-Call Relation
+Evidence Symbol
 ↓
-簡易Feature
-↓
-Process
-↓
-Symbol / Codeへ移動
+Feature → Process → Symbol → Sourceの往復
 ```
 
-PoC-0の成功条件は、代表Repositoryに対して`Feature → Process → Symbol / Code`の最小Navigationが成立し、MVP-04からMVP-06の実現可能性を確認できることである。
+PoC-0の必須Gateは`P0-01`〜`P0-22`とする。Semantic Linkは`P0-S01`のStretch Goalであり、PoC-0の合否には含めない。
+
+PoC-0ではSmall（1k〜5k LOC）とMedium（10k〜30k LOC）の評価を必須とする。約100k LOCは任意Stress Testとし、MVP-04の「100k LOC以下・60秒以内」はMVP本実装の受入条件として維持する。
+
+AI Verification、Git STALE、Electron、SQLiteはPoC-0へ含めず、それぞれPoC-1、PoC-2、MVP本実装で検証する。
 
 ## 18. 推奨実装順
 

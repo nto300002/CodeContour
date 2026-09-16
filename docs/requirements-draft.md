@@ -8,6 +8,7 @@
 
 - [プロダクト要件](product-requirements.md)
 - [MVP Scope・対応範囲・非機能目標](mvp-scope.md)
+- [PoC-0正式仕様](poc-0-spec.md)
 - [状態・論理データモデル・主要Sequence](domain-model.md)
 - [Context・AI・ユーザー所有権](context-and-ai.md)
 - [Git・変更追跡・Staleness](git-and-staleness.md)
