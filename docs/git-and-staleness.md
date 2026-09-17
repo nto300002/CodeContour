@@ -1,11 +1,13 @@
 # Git・変更追跡・Staleness
 
-[ドキュメント一覧](README.md) | [設計思想](product-principles.md)
+[ドキュメント一覧](README.md) | [設計思想](product-principles.md) | [MVP実装境界](mvp-implementation-boundaries.md)
 
 ```text
 MVP: Working Tree / HEAD差分による局所STALE
 DESIGNED / POST-MVP: Historical Commit、Relevant History、Learning Log Repository
 ```
+
+> MVPのActive / Staging Snapshot、Atomic切替、Analysis State、PARTIAL最低条件は[MVP実装境界・開始Gate](mvp-implementation-boundaries.md)を正規仕様とする。
 
 > Git時間軸、Incremental Update、AgeとStaleness、Learning Log Repository、STALE伝播を定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。

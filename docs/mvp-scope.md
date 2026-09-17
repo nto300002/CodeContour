@@ -1,6 +1,6 @@
 # MVP Scope・受入条件・実装順
 
-[ドキュメント一覧](README.md) | [設計思想](product-principles.md)
+[ドキュメント一覧](README.md) | [設計思想](product-principles.md) | [MVP実装境界](mvp-implementation-boundaries.md)
 
 ```text
 Status: FIXED
@@ -8,6 +8,8 @@ Decision: MVP-2026-09-16
 ```
 
 > 本文書はCodeContour MVPの正規仕様である。ほかの文書とMVP範囲が矛盾する場合は、本文書を優先する。
+
+> MVPの状態、Write権限、Analyzer Snapshot、Selection、Settings、SQLite保存境界は[MVP実装境界・開始Gate](mvp-implementation-boundaries.md)を正規仕様とする。
 
 ## 1. MVPで検証する問い
 

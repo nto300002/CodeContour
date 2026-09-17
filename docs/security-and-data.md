@@ -1,8 +1,10 @@
 # Security・認証・データ保全
 
-[ドキュメント一覧](README.md) | [設計思想](product-principles.md)
+[ドキュメント一覧](README.md) | [設計思想](product-principles.md) | [MVP実装境界](mvp-implementation-boundaries.md)
 
 > **MVP Scope:** Local利用だけを提供し、Account / Loginは不要とする。Cloud連携、公開機能の認証、`.codecontour` Backup / Restore UIはDESIGNED / POST-MVPとする。Repository境界、Ignore Policy、最小AI送信はMVPへ含める。
+
+> MVPのGlobal / Project Settings、AI Transmission Policyの優先順位、Credential保存先、SQLite非保存データは[MVP実装境界・開始Gate](mvp-implementation-boundaries.md)を正規仕様とする。
 
 > Local RepositoryのSecurity Boundary、AI送信、認証、Backup / Exportを定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。

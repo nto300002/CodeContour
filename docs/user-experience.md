@@ -1,8 +1,10 @@
 # ユーザー体験・画面・Recovery
 
-[ドキュメント一覧](README.md) | [設計思想](product-principles.md)
+[ドキュメント一覧](README.md) | [設計思想](product-principles.md) | [MVP実装境界](mvp-implementation-boundaries.md)
 
 > **MVP Scope:** MVPの主要画面はLocal ProjectとUnderstanding Workspace（面・線・点）に限定する。Learning、Engineering Profile、Login Gate、公開導線はDESIGNED / POST-MVPとする。
+
+> MVPのScreen / View / Overlay責務、7 Screen、Selection State不変条件は[MVP実装境界・開始Gate](mvp-implementation-boundaries.md)を優先する。
 
 > Navigation、理解Scope、基本利用フロー、画面構成、Error / Recovery、Undo / Redoを定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。

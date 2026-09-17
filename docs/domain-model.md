@@ -1,8 +1,10 @@
 # 状態・論理データモデル・主要Sequence
 
-[ドキュメント一覧](README.md) | [設計思想](product-principles.md)
+[ドキュメント一覧](README.md) | [設計思想](product-principles.md) | [MVP実装境界](mvp-implementation-boundaries.md)
 
 > **MVP Scope:** 論理モデルは将来Entityを含む全体設計として維持する。Learning、Skill、Public、LearningLogSync関連EntityはDESIGNED / POST-MVPであり、MVPではSQLite上に必要なCore Entityだけを実装する。
+
+> MVP主要Entityの独立状態軸、Write権限、SourceAnchor / CodeSnapshotの永続境界は[MVP実装境界・開始Gate](mvp-implementation-boundaries.md)を優先する。
 
 > Feature / Process状態、Entity、Cardinality、Versioning、Event / Guard / Effect、主要Sequenceを定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。

@@ -1,8 +1,10 @@
 # Context・AI・ユーザー所有権
 
-[ドキュメント一覧](README.md) | [設計思想](product-principles.md)
+[ドキュメント一覧](README.md) | [設計思想](product-principles.md) | [MVP実装境界](mvp-implementation-boundaries.md)
 
 > **MVP Scope:** MVPのAI機能はUser Explanation Verificationだけである。汎用Context Cache、AI Proposalの高度な適用、Process / Data Flow生成は設計を維持したままPOST-MVPとする。
+
+> MVPのVerificationAttempt、競合Guard、UserExplanationへの結果反映、AIのWrite禁止は[MVP実装境界・開始Gate](mvp-implementation-boundaries.md)を正規仕様とする。
 
 > Feature Context、AI Context、User Context、AI Proposal、Verification、Write権限境界を定義します。
 > 元文書の節番号は、議論・履歴との対応を追跡できるよう維持しています。
