@@ -441,6 +441,11 @@ AI Verification、Git STALE、Electron、SQLiteはPoC-0へ含めず、それぞ�
 
 ```text
 Phase 0: TypeScript Structural Analyzer PoC
+        + Architecture Spike（並行・合否は分離）
+          ├ Analyzer Executor
+          └ SQLite Driver / Packaged App
+↓
+ADR-001 / ADR-002
 ↓
 Phase 1: Local Project + SQLite
 ↓

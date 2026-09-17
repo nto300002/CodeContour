@@ -189,7 +189,38 @@ COMMIT
 
 解析が`FAILED`または`CANCELLED`の場合、Staging Snapshotを破棄し、Active Snapshotを変更しない。
 
-### 4.3 Projectの利用可能性
+### 4.3 Analyzer Batch Protocol
+
+AnalyzerからDB Serviceへ渡す結果には次を付与する。
+
+Projectごとに`ANALYZING`のRunは最大1つとし、次のPointerで実行対象を特定する。Run開始、Pointer設定、Staging Snapshot作成は同じTransactionで行う。
+
+```text
+Project.currentAnalysisRunId
+Project.currentStagingSnapshotId
+```
+
+```text
+analysisRunId
+stagingSnapshotId
+sequenceNumber
+schemaVersion
+payload
+```
+
+`sequenceNumber`は同一Run内で単調増加し、`(analysisRunId, sequenceNumber)`を一意に扱う。DB Serviceは次をすべて満たすBatchだけを保存する。
+
+```text
+AnalysisRun.status == ANALYZING
+batch.analysisRunId == Project.currentAnalysisRunId
+batch.stagingSnapshotId == Project.currentStagingSnapshotId
+stagingSnapshotId != Project.activeCodeSnapshotId
+sequenceNumber is unprocessed
+```
+
+不成立のBatchは破棄する。GuardはAnalyzerではなく単一Write主体であるDB Serviceが実行し、Cancel済みRun、旧Runの遅延結果、重複Batchが現在の解析結果へ混入することを防ぐ。詳細は[Technical Requirements](technical-requirements.md)を参照する。
+
+### 4.4 Projectの利用可能性
 
 Workspaceを利用できるかは最新Analysis Stateだけで判断しない。
 
@@ -200,7 +231,7 @@ Workspace usable
 
 再解析が失敗してもActive SnapshotがあればWorkspaceを利用できる。初回解析が失敗しActive SnapshotがなければWorkspaceへ進めない。
 
-### 4.4 PARTIAL最低条件
+### 4.5 PARTIAL最低条件
 
 次をすべて満たす場合だけ`PARTIAL`とする。
 
@@ -284,6 +315,8 @@ CURRENT / STALE
 Resolution:
 RESOLVED / ORPHANED
 ```
+
+SourceAnchorはSnapshotを跨ぐ安定Identityである。`resolutionState`は現在状態のProjectionとし、Snapshotごとの位置・解決結果はSymbolOccurrenceへ保持する。旧Snapshotの解決情報を破壊的に上書きしない。
 
 ### 5.8 UserExplanation
 
@@ -568,7 +601,7 @@ Undo / Redo StackはMVPではSession内だけ保持し、アプリ再起動後�
 
 ## 11. 実装開始Gate
 
-次を満たしたため、Action Catalogの完全化を待たずMVP基盤実装へ進める。
+次の仕様設計Gateを満たしたため、Action Catalogの完全化を待たずPoC-0とArchitecture Spikeへ進める。
 
 ```text
 ✓ MVP Scope
@@ -586,6 +619,8 @@ Undo / Redo StackはMVPではSession内だけ保持し、アプリ再起動後�
 ✓ SQLite保存境界
 ✓ 中心E2E
 ```
+
+MVP Vertical Slice実装は、PoC-0の必須Gate、[Architecture Spike](architecture-spike-plan.md)の必須Gate、ADR-001、ADR-002の確定後に開始する。ここでいう実装開始Gateは、追加の網羅的仕様化をBlocking条件にしないという意味であり、技術Spikeを省略する意味ではない。
 
 ## 12. 実装前に完全固定しない事項
 
