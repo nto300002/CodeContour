@@ -1,0 +1,9 @@
+{
+  "basic": ["src/index.ts"],
+  "extendsPaths": ["src/main.ts"],
+  "security": {
+    "pathTraversal": "PATH_OUTSIDE_ROOT",
+    "externalSymlink": []
+  },
+  "excludedDirectories": [".git", "node_modules"]
+}
