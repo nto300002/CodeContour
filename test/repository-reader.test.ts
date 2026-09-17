@@ -154,6 +154,36 @@ describe("loadTypeScriptProject", () => {
     expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
   });
 
+  it("honors .gitignore rules on the logical path of an in-root symlink", async () => {
+    const root = await createRepository({
+      "tsconfig.json": JSON.stringify({ files: ["src/linked/secret.ts"] }),
+      "src/.gitignore": "linked/\n",
+      "shared/secret.ts": "export const secret = true;",
+    });
+    await mkdir(join(root, "src"), { recursive: true });
+    await symlink(join(root, "shared"), join(root, "src", "linked"));
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      files: [],
+      skippedFiles: expect.arrayContaining([{ path: "src/linked/secret.ts", reason: "GITIGNORE" }]),
+    });
+  });
+
+  it("fails closed when a .gitignore cannot be read", async () => {
+    const root = await createRepository({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/main.ts": "export const visible = true;",
+      ".gitignore/invalid": "not a file",
+    });
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "REPOSITORY_READ_ERROR" } });
+  });
+
   it("excludes node_modules and .git from the application index", async () => {
     const root = await createRepository({
       "tsconfig.json": JSON.stringify({ include: ["src", "node_modules", ".git"] }),

@@ -7,7 +7,7 @@ Issue #2（P0-01〜P0-06）の実装・テスト結果を記録する。
 | P0-01 | PASS | Local Repository Rootをcanonical pathとして解決する。 |
 | P0-02 | PASS | Root内の対象`tsconfig.json`を1件指定できる。 |
 | P0-03 | PASS | Path Traversal、Root外`extends`（配列を含む）、Root外SymlinkをApplication Indexへ入れず、除外理由を観測できる。 |
-| P0-04 | PASS | Rootおよびネストした`.gitignore`のglob規則、`.git`、`node_modules`をApplication Indexから除外する。Root外を指す`.gitignore` Symlinkはfail-closedで拒否する。 |
+| P0-04 | PASS | Rootおよびネストした`.gitignore`のglob規則、`.git`、`node_modules`をApplication Indexから除外する。Root外を指すSymlinkと読取り不能な`.gitignore`はfail-closedで拒否し、Root内Symlinkも論理Path上のIgnore規則で判定する。 |
 | P0-05 | PASS | TypeScript Compiler APIで`extends`、`compilerOptions`、`baseUrl`、`paths`、`moduleResolution`、`include`、`exclude`、`files`を解決する。 |
 | P0-06 | PASS | `.ts` / `.tsx`の対象Fileを取得する。 |
 
@@ -41,6 +41,8 @@ Issue #2（P0-01〜P0-06）の実装・テスト結果を記録する。
 
 - `tsconfig`の`extends`（配列を含む）もRepository境界を越える読取り経路になるため、対象Fileと同じくcanonical pathで検証する必要がある。
 - `.gitignore`はネストでき、Symlinkにもなり得るため、Policy File自体もRepository境界内であることを確認する必要がある。
+- `.gitignore`の読取り失敗を「ルールなし」として扱うとfail-openになる。存在しない場合だけを正常扱いにし、それ以外は観測可能な読取りエラーとする。
+- Symlinkのcanonical pathは境界判定に必要だが、Ignore Policyはユーザーが指定した論理Pathで照合する必要がある。
 - 除外だけでなく、`skippedFiles`で理由を返すことでSecurity上の読み飛ばしを観測可能にする。
 
 ### 6. Result

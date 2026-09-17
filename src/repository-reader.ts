@@ -57,14 +57,20 @@ type GitignoreReadResult =
 
 async function readGitignore(root: string, directory: string): Promise<GitignoreReadResult> {
   const requestedPath = resolve(directory, ".gitignore");
+  let canonicalPath: string;
   try {
-    const canonicalPath = await realpath(requestedPath);
-    if (!isWithinRoot(root, canonicalPath)) {
-      return { ok: false, error: configError("PATH_OUTSIDE_ROOT", ".gitignore must be inside the repository root.") };
-    }
+    canonicalPath = await realpath(requestedPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { ok: true };
+    return { ok: false, error: configError("REPOSITORY_READ_ERROR", ".gitignore cannot be resolved.") };
+  }
+  if (!isWithinRoot(root, canonicalPath)) {
+    return { ok: false, error: configError("PATH_OUTSIDE_ROOT", ".gitignore must be inside the repository root.") };
+  }
+  try {
     return { ok: true, rules: ignore().add(await readFile(canonicalPath, "utf8")) };
   } catch {
-    return { ok: true };
+    return { ok: false, error: configError("REPOSITORY_READ_ERROR", ".gitignore cannot be read.") };
   }
 }
 
@@ -182,22 +188,23 @@ export async function loadTypeScriptProject(input: LoadTypeScriptProjectInput): 
       continue;
     }
 
-    const relativeFile = relativePath(root, canonicalFile);
-    if (isPermanentlyIgnored(relativeFile)) {
-      skippedFiles.push({ path: relativeFile, reason: "RESERVED_DIRECTORY" });
+    const logicalRelativeFile = relativePath(root, requestedFile);
+    const canonicalRelativeFile = relativePath(root, canonicalFile);
+    if (isPermanentlyIgnored(logicalRelativeFile) || isPermanentlyIgnored(canonicalRelativeFile)) {
+      skippedFiles.push({ path: logicalRelativeFile, reason: "RESERVED_DIRECTORY" });
       continue;
     }
-    if (isSecurityIgnored(relativeFile)) {
-      skippedFiles.push({ path: relativeFile, reason: "SECURITY_IGNORE" });
+    if (isSecurityIgnored(logicalRelativeFile) || isSecurityIgnored(canonicalRelativeFile)) {
+      skippedFiles.push({ path: logicalRelativeFile, reason: "SECURITY_IGNORE" });
       continue;
     }
-    const gitignore = await isGitIgnored(root, canonicalFile);
+    const gitignore = await isGitIgnored(root, requestedFile);
     if (!gitignore.ok) return gitignore.error;
     if (gitignore.ignored) {
-      skippedFiles.push({ path: relativeFile, reason: "GITIGNORE" });
+      skippedFiles.push({ path: logicalRelativeFile, reason: "GITIGNORE" });
       continue;
     }
-    files.push(relativeFile);
+    files.push(canonicalRelativeFile);
   }
 
   return {
