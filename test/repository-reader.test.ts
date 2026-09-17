@@ -85,6 +85,17 @@ describe("loadTypeScriptProject", () => {
     expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
   });
 
+  it("rejects every member of an extends array when one escapes the repository root", async () => {
+    const root = await createRepository({
+      "tsconfig.base.json": "{}",
+      "tsconfig.json": JSON.stringify({ extends: ["./tsconfig.base.json", "../external.json"] }),
+    });
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
+  });
+
   it("returns an observable exclusion for an out-of-root file declared by tsconfig", async () => {
     const root = await createRepository({ "tsconfig.json": JSON.stringify({ files: ["../outside.ts"] }) });
     const external = await createRepository({ "outside.ts": "export const outside = true;" });
@@ -111,6 +122,36 @@ describe("loadTypeScriptProject", () => {
     const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
 
     expect(result).toMatchObject({ ok: true, files: ["src/public.ts"] });
+  });
+
+  it("applies a nested .gitignore to files below its directory", async () => {
+    const root = await createRepository({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/main.ts": "export const visible = true;",
+      "src/generated/.gitignore": "*.ts\n",
+      "src/generated/client.ts": "export const generated = true;",
+    });
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      files: ["src/main.ts"],
+      skippedFiles: expect.arrayContaining([{ path: "src/generated/client.ts", reason: "GITIGNORE" }]),
+    });
+  });
+
+  it("rejects a .gitignore symlink that resolves outside the repository root", async () => {
+    const root = await createRepository({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/main.ts": "export const visible = true;",
+    });
+    const external = await createRepository({ "ignore": "src/main.ts\n" });
+    await symlink(join(external, "ignore"), join(root, ".gitignore"));
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
   });
 
   it("excludes node_modules and .git from the application index", async () => {
