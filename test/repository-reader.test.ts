@@ -141,6 +141,24 @@ describe("loadTypeScriptProject", () => {
     });
   });
 
+  it("applies a child .gitignore negation after a matching parent rule", async () => {
+    const root = await createRepository({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      ".gitignore": "src/**/*.ts\n",
+      "src/generated/.gitignore": "!client.ts\n",
+      "src/generated/client.ts": "export const includedAgain = true;",
+      "src/generated/server.ts": "export const ignored = true;",
+    });
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      files: ["src/generated/client.ts"],
+      skippedFiles: expect.arrayContaining([{ path: "src/generated/server.ts", reason: "GITIGNORE" }]),
+    });
+  });
+
   it("rejects a .gitignore symlink that resolves outside the repository root", async () => {
     const root = await createRepository({
       "tsconfig.json": JSON.stringify({ include: ["src"] }),

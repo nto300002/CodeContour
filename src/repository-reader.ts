@@ -1,6 +1,6 @@
 import { realpath, readFile } from "node:fs/promises";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
-import ignore, { type Ignore } from "ignore";
+import ignore from "ignore";
 import ts from "typescript";
 
 export type RepositoryReaderErrorCode =
@@ -52,7 +52,7 @@ function isSecurityIgnored(path: string): boolean {
 }
 
 type GitignoreReadResult =
-  | { ok: true; rules?: Ignore }
+  | { ok: true; contents?: string }
   | { ok: false; error: RepositoryReaderResult };
 
 async function readGitignore(root: string, directory: string): Promise<GitignoreReadResult> {
@@ -68,10 +68,27 @@ async function readGitignore(root: string, directory: string): Promise<Gitignore
     return { ok: false, error: configError("PATH_OUTSIDE_ROOT", ".gitignore must be inside the repository root.") };
   }
   try {
-    return { ok: true, rules: ignore().add(await readFile(canonicalPath, "utf8")) };
+    return { ok: true, contents: await readFile(canonicalPath, "utf8") };
   } catch {
     return { ok: false, error: configError("REPOSITORY_READ_ERROR", ".gitignore cannot be read.") };
   }
+}
+
+function scopeGitignoreRules(contents: string, directoryFromRoot: string): string[] {
+  return contents.split(/\r?\n/).map((line) => {
+    if (!directoryFromRoot || !line || line.startsWith("#")) return line;
+
+    const negation = line.startsWith("!") ? "!" : "";
+    const pattern = line.slice(negation.length);
+    const anchored = pattern.startsWith("/");
+    const unanchoredPattern = anchored ? pattern.slice(1) : pattern;
+    const withoutTrailingSlash = unanchoredPattern.endsWith("/") ? unanchoredPattern.slice(0, -1) : unanchoredPattern;
+    const containsDirectorySeparator = withoutTrailingSlash.includes("/");
+    const scopedPattern = anchored || containsDirectorySeparator
+      ? `${directoryFromRoot}/${unanchoredPattern}`
+      : `${directoryFromRoot}/**/${unanchoredPattern}`;
+    return `${negation}${scopedPattern}`;
+  });
 }
 
 async function isGitIgnored(root: string, filePath: string): Promise<{ ok: true; ignored: boolean } | { ok: false; error: RepositoryReaderResult }> {
@@ -81,12 +98,15 @@ async function isGitIgnored(root: string, filePath: string): Promise<{ ok: true;
     if (directory === root) break;
   }
 
+  const policy = ignore();
   for (const directory of directories.reverse()) {
     const gitignore = await readGitignore(root, directory);
     if (!gitignore.ok) return gitignore;
-    if (gitignore.rules?.ignores(relativePath(directory, filePath))) return { ok: true, ignored: true };
+    if (gitignore.contents !== undefined) {
+      policy.add(scopeGitignoreRules(gitignore.contents, relativePath(root, directory)));
+    }
   }
-  return { ok: true, ignored: false };
+  return { ok: true, ignored: policy.ignores(relativePath(root, filePath)) };
 }
 
 function configError(code: RepositoryReaderErrorCode, message: string): RepositoryReaderResult {

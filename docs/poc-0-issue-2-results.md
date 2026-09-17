@@ -18,7 +18,7 @@ Issue #2（P0-01〜P0-06）の実装・テスト結果を記録する。
 ### 1. Acceptance
 
 - [x] Acceptance Criteriaをすべて満たした
-- [x] 必須TestがGreen（11件）
+- [x] 必須TestがGreen（17件）
 - [x] 既存Testを壊していない
 
 ### 2. Correctness
@@ -43,6 +43,7 @@ Issue #2（P0-01〜P0-06）の実装・テスト結果を記録する。
 - `.gitignore`はネストでき、Symlinkにもなり得るため、Policy File自体もRepository境界内であることを確認する必要がある。
 - `.gitignore`の読取り失敗を「ルールなし」として扱うとfail-openになる。存在しない場合だけを正常扱いにし、それ以外は観測可能な読取りエラーとする。
 - Symlinkのcanonical pathは境界判定に必要だが、Ignore Policyはユーザーが指定した論理Pathで照合する必要がある。
+- ネストした`.gitignore`は親から子へ規則を合成し、否定規則を含む最終一致で判定する必要がある。
 - 除外だけでなく、`skippedFiles`で理由を返すことでSecurity上の読み飛ばしを観測可能にする。
 
 ### 6. Result
