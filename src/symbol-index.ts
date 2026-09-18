@@ -1,4 +1,6 @@
 import { resolve, relative, sep } from "node:path";
+import { dirname } from "node:path";
+import { realpathSync } from "node:fs";
 import ts from "typescript";
 import { loadTypeScriptProject, type RepositoryReaderErrorCode } from "./repository-reader.js";
 
@@ -25,6 +27,7 @@ function nameOf(node: ts.Node): string | undefined {
 function signatureOf(node: ts.Node, checker: ts.TypeChecker): string {
   if (ts.isFunctionLike(node)) { const signature = checker.getSignatureFromDeclaration(node); return signature ? checker.signatureToString(signature, node, ts.TypeFormatFlags.NoTruncation) : node.getText().split("{")[0].trim(); }
   if (ts.isVariableDeclaration(node)) return checker.typeToString(checker.getTypeAtLocation(node), node, ts.TypeFormatFlags.NoTruncation);
+  if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) return node.getText();
   return node.getText().split("{")[0].trim();
 }
 
@@ -33,7 +36,10 @@ export async function createSymbolIndex(input: SymbolIndexInput): Promise<Symbol
   if (!project.ok) return project;
   const rootNames = project.files.map((file) => resolve(input.repositoryRoot, file));
   const indexedFiles = new Set(project.files);
-  const approvedFiles = new Set(rootNames.map((file) => resolve(file)));
+  const canonicalPath = (fileName: string) => { try { return realpathSync(fileName); } catch { return undefined; } };
+  const approvedFiles = new Set(rootNames.map(canonicalPath).filter((file): file is string => file !== undefined));
+  const repositoryNodeModules = canonicalPath(resolve(input.repositoryRoot, "node_modules"));
+  const typeScriptLibDirectory = dirname(ts.getDefaultLibFilePath(project.compilerOptions));
   const compilerHost = ts.createCompilerHost(project.compilerOptions);
   const originalReadFile = compilerHost.readFile.bind(compilerHost);
   const originalFileExists = compilerHost.fileExists.bind(compilerHost);
@@ -41,8 +47,12 @@ export async function createSymbolIndex(input: SymbolIndexInput): Promise<Symbol
   // Source implementation files must have passed Repository Reader policy.  External
   // declaration files are the only dependency files the compiler may read for typing.
   const isReadableByCompiler = (fileName: string) => {
-    const absolute = resolve(fileName);
-    return approvedFiles.has(absolute) || absolute.endsWith(".d.ts");
+    const canonicalFile = canonicalPath(fileName);
+    if (!canonicalFile) return false;
+    if (approvedFiles.has(canonicalFile)) return true;
+    if (!canonicalFile.endsWith(".d.ts")) return false;
+    const isInDirectory = (directory: string | undefined) => directory !== undefined && (canonicalFile === directory || canonicalFile.startsWith(`${directory}${sep}`));
+    return isInDirectory(repositoryNodeModules) || isInDirectory(typeScriptLibDirectory);
   };
   compilerHost.fileExists = (fileName) => isReadableByCompiler(fileName) && originalFileExists(fileName);
   compilerHost.readFile = (fileName) => isReadableByCompiler(fileName) ? originalReadFile(fileName) : undefined;

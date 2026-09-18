@@ -28,6 +28,8 @@ describe("createSymbolIndex", () => {
     expect(result.symbols).toEqual(expect.not.arrayContaining([expect.objectContaining({ relativePath: expect.stringContaining("node_modules") })]));
     for (const symbol of result.symbols) expect(symbol).toMatchObject({ id: expect.any(String), kind: expect.any(String), name: expect.any(String), qualifiedName: expect.any(String), relativePath: "src/model.ts", range: { start: expect.any(Number), end: expect.any(Number) }, signature: expect.any(String) });
     expect(result.symbols.find((symbol) => symbol.name === "greet")?.signature).toContain("name: string");
+    expect(result.symbols.find((symbol) => symbol.name === "User")?.signature).toContain("id: string");
+    expect(result.symbols.find((symbol) => symbol.name === "Result")?.signature).toContain("value: T");
   });
 
   it("reports parse-failed files separately without discarding other symbols", async () => {
@@ -73,6 +75,22 @@ describe("createSymbolIndex", () => {
     const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
     expect(result).toMatchObject({ ok: true });
     if (result.ok) { expect(result.symbols).toEqual(expect.arrayContaining([expect.objectContaining({ name: "value", signature: "() => External" })])); expect(result.symbols.every((symbol) => !symbol.relativePath.includes("node_modules"))).toBe(true); }
+  });
+
+  it("does not read a triple-slash declaration outside the allowed external package roots", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/main.ts": "/// <reference path='../../external.d.ts' />\nexport const local = () => 1;",
+    });
+    const externalPath = join(root, "..", "external.d.ts");
+    await writeFile(externalPath, "declare const leaked: string;");
+    try {
+      const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+      expect(result).toMatchObject({ ok: true });
+      if (result.ok) expect(result.symbols.map((symbol) => symbol.name)).toEqual(["local"]);
+    } finally {
+      await rm(externalPath, { force: true });
+    }
   });
 
   it("matches the saved expected IR projection", async () => {
