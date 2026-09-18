@@ -33,7 +33,23 @@ export async function createSymbolIndex(input: SymbolIndexInput): Promise<Symbol
   if (!project.ok) return project;
   const rootNames = project.files.map((file) => resolve(input.repositoryRoot, file));
   const indexedFiles = new Set(project.files);
-  const program = ts.createProgram({ rootNames, options: project.compilerOptions });
+  const approvedFiles = new Set(rootNames.map((file) => resolve(file)));
+  const compilerHost = ts.createCompilerHost(project.compilerOptions);
+  const originalReadFile = compilerHost.readFile.bind(compilerHost);
+  const originalFileExists = compilerHost.fileExists.bind(compilerHost);
+  const originalGetSourceFile = compilerHost.getSourceFile.bind(compilerHost);
+  // Source implementation files must have passed Repository Reader policy.  External
+  // declaration files are the only dependency files the compiler may read for typing.
+  const isReadableByCompiler = (fileName: string) => {
+    const absolute = resolve(fileName);
+    return approvedFiles.has(absolute) || absolute.endsWith(".d.ts");
+  };
+  compilerHost.fileExists = (fileName) => isReadableByCompiler(fileName) && originalFileExists(fileName);
+  compilerHost.readFile = (fileName) => isReadableByCompiler(fileName) ? originalReadFile(fileName) : undefined;
+  compilerHost.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => isReadableByCompiler(fileName)
+    ? originalGetSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile)
+    : undefined;
+  const program = ts.createProgram({ rootNames, options: project.compilerOptions, host: compilerHost });
   const checker = program.getTypeChecker(); const symbols: AnalyzerSymbol[] = []; const filesWithParseErrors: string[] = [];
   for (const sourceFile of program.getSourceFiles()) {
     const absolute = resolve(sourceFile.fileName); const root = resolve(input.repositoryRoot);
