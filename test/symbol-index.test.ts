@@ -93,6 +93,20 @@ describe("createSymbolIndex", () => {
     }
   });
 
+  it("uses an in-repository declaration file for type resolution without indexing it", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/globals.d.ts": "interface DomainUser { id: string }",
+      "src/main.ts": "export const createUser = (): DomainUser => ({ id: '1' });",
+    });
+    const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) {
+      expect(result.symbols).toEqual(expect.arrayContaining([expect.objectContaining({ name: "createUser", signature: "() => DomainUser" })]));
+      expect(result.symbols.every((symbol) => symbol.relativePath !== "src/globals.d.ts")).toBe(true);
+    }
+  });
+
   it("matches the saved expected IR projection", async () => {
     const root = await fixture({ "tsconfig.json": JSON.stringify({ include: ["src"] }), "src/main.ts": "export function expected(input: string): number { return input.length; }" });
     const expected = JSON.parse(await readFile(new URL("./fixtures/symbol-index.expected.json", import.meta.url), "utf8"));

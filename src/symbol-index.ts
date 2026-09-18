@@ -35,7 +35,7 @@ export async function createSymbolIndex(input: SymbolIndexInput): Promise<Symbol
   const project = await loadTypeScriptProject(input);
   if (!project.ok) return project;
   const rootNames = project.files.map((file) => resolve(input.repositoryRoot, file));
-  const indexedFiles = new Set(project.files);
+  const indexedFiles = new Set(project.files.filter((file) => !file.endsWith(".d.ts")));
   const canonicalPath = (fileName: string) => { try { return realpathSync(fileName); } catch { return undefined; } };
   const approvedFiles = new Set(rootNames.map(canonicalPath).filter((file): file is string => file !== undefined));
   const repositoryNodeModules = canonicalPath(resolve(input.repositoryRoot, "node_modules"));
