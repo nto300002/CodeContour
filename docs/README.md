@@ -26,6 +26,7 @@ CodeContourの設計・要件ドキュメントです。要件はテーマ別の
 | [poc-0-spec.md](poc-0-spec.md) | PoC-0のIN / OUT、Gate、Fixture、計測、Go / No-Go |
 | [architecture-spike-plan.md](architecture-spike-plan.md) | Analyzer ExecutorとSQLite Driverの比較・選定Gate |
 | [development-requirements.md](development-requirements.md) | TDD、テスト階層、Issue、CI Gate、Definition of Ready / Done |
+| [ui-mocks.md](ui-mocks.md) | 7 ScreensとUnderstanding Workspace 3 ViewsのUIモック |
 | [domain-model.md](domain-model.md) | 状態モデル、Entity、Cardinality、Event、Sequence |
 | [context-and-ai.md](context-and-ai.md) | Feature Context、AI境界、User Context、Proposal |
 | [git-and-staleness.md](git-and-staleness.md) | Git時間軸、変更追跡、STALE伝播 |

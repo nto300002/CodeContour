@@ -93,6 +93,14 @@ Semantic LinkとUser Explanationを保存する
 | AI | User Explanationの明示的なVerificationのみ |
 | Storage | Local SQLite |
 
+## UI Mockups
+
+以下はMVPの中心ViewであるFeature MapのUIモックです。全7 ScreensとUnderstanding Workspace内の3 Viewsは[UI Mockups](docs/ui-mocks.md)で確認できます。
+
+![CodeContour Feature Map UI mock](docs/assets/ui-mocks/04-feature-map.png)
+
+UIモックは情報設計を共有するための視覚資料です。表示文言、配置、Iconなどの局所仕様より、固定MVPと実装境界を優先します。
+
 ## Product Principles
 
 ### 人間・SYSTEM・AIの責務を分離する
