@@ -39,7 +39,7 @@ describe("FeatureService", () => {
     const service = new FeatureService(new UserModelFileStore(path, "project-1"), { id: "project-1", repositoryLoaded: true }, () => "feature-1");
 
     expect(await service.createFeature("   ")).toEqual({ ok: false, error: { code: "NAME_REQUIRED" } });
-    expect(await service.load()).toEqual({ version: 1, projectId: "project-1", features: [] });
+    expect(await service.load()).toEqual({ version: 1, projectId: "project-1", features: [], processes: [] });
   });
 
   it("persists the user model and reloads the created feature", async () => {
@@ -68,7 +68,7 @@ describe("FeatureService", () => {
     const service = new FeatureService(new UserModelFileStore(path, "project-1"), { id: "project-1", repositoryLoaded: false }, () => "feature-1");
 
     expect(await service.createFeature("Authentication")).toEqual({ ok: false, error: { code: "PROJECT_NOT_READY" } });
-    expect(await service.load()).toEqual({ version: 1, projectId: "project-1", features: [] });
+    expect(await service.load()).toEqual({ version: 1, projectId: "project-1", features: [], processes: [] });
   });
 
   it("creates and displays a feature through the repository-to-Feature View flow", async () => {

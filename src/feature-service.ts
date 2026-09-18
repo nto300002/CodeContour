@@ -9,10 +9,21 @@ export interface Feature {
   confirmation: "CONFIRMED";
 }
 
+export interface ProcessStep { id: string; name: string; order: number; }
+export interface Process {
+  id: string;
+  featureId: string;
+  name: string;
+  origin: "USER";
+  confirmation: "CONFIRMED";
+  steps: ProcessStep[];
+}
+
 export interface UserModel {
   version: 1;
   projectId: string;
   features: Feature[];
+  processes: Process[];
 }
 
 export interface UserModelStore {
@@ -42,7 +53,7 @@ export class UserModelFileStore implements UserModelStore {
       const parsed: unknown = JSON.parse(await readFile(this.filePath, "utf8"));
       if (!isUserModel(parsed)) throw new Error("user-model.json has an invalid shape.");
       if (parsed.projectId !== this.projectId) throw new Error("user-model.json belongs to a different project.");
-      return parsed;
+      return { ...parsed, processes: parsed.processes ?? [] };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyUserModel(this.projectId);
       throw error;
@@ -101,7 +112,7 @@ export function featureViewItems(model: UserModel): Array<{ id: string; label: s
   return model.features.map((feature) => ({ id: feature.id, label: feature.name }));
 }
 
-function emptyUserModel(projectId: string): UserModel { return { version: 1, projectId, features: [] }; }
+function emptyUserModel(projectId: string): UserModel { return { version: 1, projectId, features: [], processes: [] }; }
 
 function isUserModel(value: unknown): value is UserModel {
   if (typeof value !== "object" || value === null) return false;
@@ -109,5 +120,16 @@ function isUserModel(value: unknown): value is UserModel {
   return model.version === 1 && typeof model.projectId === "string" && Array.isArray(model.features)
     && model.features.every((feature) => typeof feature === "object" && feature !== null
       && typeof (feature as Feature).id === "string" && typeof (feature as Feature).name === "string"
-      && (feature as Feature).origin === "USER" && (feature as Feature).confirmation === "CONFIRMED");
+      && (feature as Feature).origin === "USER" && (feature as Feature).confirmation === "CONFIRMED")
+    && (model.processes === undefined || Array.isArray(model.processes) && model.processes.every(isProcess));
+}
+
+function isProcess(value: unknown): value is Process {
+  if (typeof value !== "object" || value === null) return false;
+  const process = value as Partial<Process>;
+  return typeof process.id === "string" && typeof process.featureId === "string" && typeof process.name === "string"
+    && process.origin === "USER" && process.confirmation === "CONFIRMED" && Array.isArray(process.steps)
+    && process.steps.every((step) => typeof step === "object" && step !== null
+      && typeof (step as ProcessStep).id === "string" && typeof (step as ProcessStep).name === "string"
+      && typeof (step as ProcessStep).order === "number");
 }
