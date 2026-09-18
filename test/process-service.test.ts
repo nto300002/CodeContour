@@ -86,6 +86,7 @@ describe("ProcessService", () => {
       features: [{ id: "feature-1", name: "Authentication", origin: "USER", confirmation: "CONFIRMED" }],
       processes: [],
       processSymbolLinks: [],
+      dataFlows: [],
     });
     await service.createProcess({ featureId: "feature-1", name: "Sign in", firstStepName: "Validate credentials" });
     const reloaded = await new UserModelFileStore(path, "project-1").load();
