@@ -2,6 +2,7 @@ import { realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { loadTypeScriptProject, type RepositoryReaderErrorCode } from "./repository-reader.js";
+import { classifyResolution, type ResolutionReason, type ResolutionState } from "./relation-resolution.js";
 
 export interface CallSymbol {
   qualifiedName: string;
@@ -11,8 +12,10 @@ export interface CallSymbol {
 
 export interface CallRelation {
   type: "CALLS";
-  targetScope: "PROJECT" | "EXTERNAL";
-  resolution: "RESOLVED";
+  targetScope: "PROJECT" | "EXTERNAL" | "UNKNOWN";
+  resolution: ResolutionState;
+  reason?: ResolutionReason;
+  inferenceEvidence?: string;
   caller: CallSymbol;
   callee?: CallSymbol;
   evidenceLocation: { relativePath: string; start: number; end: number };
@@ -80,8 +83,26 @@ export async function analyzeCalls(input: { repositoryRoot: string; tsconfigPath
     if (!sourcePath || !allowedFiles.has(sourcePath)) continue;
     const fileScope: CallSymbol = { qualifiedName: "<file>", relativePath: sourcePath, range: { start: 0, end: source.getEnd() } };
     const visit = (node: ts.Node): void => {
-      // Element access (service[action]()) requires runtime data and is UNKNOWN.
-      if (ts.isCallExpression(node) && !ts.isElementAccessExpression(node.expression)) {
+      if (ts.isCallExpression(node)) {
+        let owner: ts.Declaration | undefined;
+        for (let ancestor: ts.Node | undefined = node.parent; ancestor; ancestor = ancestor.parent) {
+          if (ts.isFunctionLike(ancestor) || ts.isMethodDeclaration(ancestor)) { owner = ancestor; break; }
+        }
+        const caller = (owner && identityOf(owner)) ?? fileScope;
+        const evidenceLocation = { relativePath: sourcePath, start: node.expression.getStart(source), end: node.expression.getEnd() };
+
+        // Dynamic imports are outside the direct Call Graph scope of PoC-0.
+        if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+          calls.push({ type: "CALLS", targetScope: "UNKNOWN", caller, evidenceLocation, ...classifyResolution({ unknownReason: "UNSUPPORTED_SYNTAX" }) });
+          ts.forEachChild(node, visit);
+          return;
+        }
+        // Element access (service[action]()) requires runtime data.
+        if (ts.isElementAccessExpression(node.expression)) {
+          calls.push({ type: "CALLS", targetScope: "UNKNOWN", caller, evidenceLocation, ...classifyResolution({ unknownReason: "DYNAMIC_PROPERTY_ACCESS" }) });
+          ts.forEachChild(node, visit);
+          return;
+        }
         const symbol = checker.getSymbolAtLocation(node.expression);
         const resolved = symbol && (symbol.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(symbol) : symbol;
         const declaration = resolved?.declarations?.[0];
@@ -91,17 +112,28 @@ export async function analyzeCalls(input: { repositoryRoot: string; tsconfigPath
         const externalCallee = declarationPath !== undefined
           && declarationPath.endsWith(".d.ts")
           && readable(declarationPath);
-        let owner: ts.Declaration | undefined;
-        for (let ancestor: ts.Node | undefined = node.parent; ancestor; ancestor = ancestor.parent) {
-          if (ts.isFunctionLike(ancestor) || ts.isMethodDeclaration(ancestor)) { owner = ancestor; break; }
+        if (resolved && resolvedSignature?.declaration && (callee || externalCallee)) {
+          const interfaceMember = declaration !== undefined && ts.isMethodSignature(declaration) && ts.isInterfaceDeclaration(declaration.parent);
+          const classification = interfaceMember
+            ? classifyResolution({ inference: { reason: "DECLARED_INTERFACE_MEMBER", evidence: "Interface member declaration" } })
+            : classifyResolution({ confirmed: true });
+          calls.push({ type: "CALLS", targetScope: callee ? "PROJECT" : "EXTERNAL", caller, callee, evidenceLocation, ...classification });
+        } else {
+          const importSpecifier = symbol?.declarations?.find(ts.isImportSpecifier);
+          const importDeclaration = importSpecifier?.parent.parent.parent;
+          const moduleSpecifier = importDeclaration && ts.isImportDeclaration(importDeclaration) && ts.isStringLiteral(importDeclaration.moduleSpecifier)
+            ? importDeclaration.moduleSpecifier : undefined;
+          const moduleResolution = moduleSpecifier && ts.resolveModuleName(moduleSpecifier.text, source.fileName, project.compilerOptions, host).resolvedModule;
+          const modulePath = moduleResolution && compilerPathToAbsolute(root, moduleResolution.resolvedFileName);
+          const moduleIsProject = modulePath !== undefined && allowedFiles.has(pathInRoot(root, modulePath) ?? "");
+          if (moduleSpecifier && moduleResolution && !moduleIsProject) {
+            calls.push({ type: "CALLS", targetScope: "EXTERNAL", caller, evidenceLocation, ...classifyResolution({ unknownReason: "MISSING_EXPORT" }) });
+          } else if (symbol?.flags && (symbol.flags & ts.SymbolFlags.Alias)) {
+            calls.push({ type: "CALLS", targetScope: "UNKNOWN", caller, evidenceLocation, ...classifyResolution({ unknownReason: "UNRESOLVED_ALIAS" }) });
+          } else {
+            calls.push({ type: "CALLS", targetScope: "UNKNOWN", caller, evidenceLocation, ...classifyResolution({ unknownReason: "UNRESOLVED_CALL_SIGNATURE" }) });
+          }
         }
-        const caller = (owner && identityOf(owner)) ?? fileScope;
-        // Do not guess unresolved callbacks/imports. External declarations are
-        // valid only when a real declaration provides a call signature.
-        if (resolved && resolvedSignature?.declaration && (callee || externalCallee)) calls.push({
-          type: "CALLS", targetScope: callee ? "PROJECT" : "EXTERNAL", resolution: "RESOLVED", caller, callee,
-          evidenceLocation: { relativePath: sourcePath, start: node.expression.getStart(source), end: node.expression.getEnd() },
-        });
       }
       ts.forEachChild(node, visit);
     };

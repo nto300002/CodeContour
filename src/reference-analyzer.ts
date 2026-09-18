@@ -2,9 +2,10 @@ import { realpathSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { loadTypeScriptProject, type RepositoryReaderErrorCode } from "./repository-reader.js";
+import type { ResolutionState } from "./relation-resolution.js";
 
 export interface SymbolIdentity { qualifiedName: string; relativePath: string; range: { start: number; end: number }; }
-export interface StaticReference { kind: "VALUE" | "TYPE"; from: SymbolIdentity; to: SymbolIdentity; targetName: string; evidenceLocation: { relativePath: string; start: number; end: number }; definition: { relativePath: string; range: { start: number; end: number } }; }
+export interface StaticReference { kind: "VALUE" | "TYPE"; resolution: ResolutionState; from: SymbolIdentity; to: SymbolIdentity; targetName: string; evidenceLocation: { relativePath: string; start: number; end: number }; definition: { relativePath: string; range: { start: number; end: number } }; }
 export type StaticReferenceResult = { ok: true; references: StaticReference[] } | { ok: false; error: { code: RepositoryReaderErrorCode; message: string } };
 
 function canonicalPath(root: string, fileName: string): string { const path = resolve(root, fileName); try { return realpathSync(path); } catch { return path; } }
@@ -43,7 +44,7 @@ export async function analyzeStaticReferences(input: { repositoryRoot: string; t
         let fromDeclaration: ts.Declaration | undefined;
         for (let ancestor: ts.Node | undefined = node.parent; ancestor; ancestor = ancestor.parent) if (ts.isFunctionLike(ancestor) || ts.isMethodDeclaration(ancestor) || ts.isVariableDeclaration(ancestor)) { fromDeclaration = ancestor; break; }
         const from = (fromDeclaration && identityOf(fromDeclaration)) ?? { qualifiedName: "<file>", relativePath: sourcePath, range: { start: 0, end: source.getEnd() } }; const to = declaration && identityOf(declaration);
-        if (declaration && definitionPath && allowed.has(definitionPath) && from && to) references.push({ kind: isTypeReference(node) ? "TYPE" : "VALUE", from, to, targetName: resolved!.name, evidenceLocation: { relativePath: sourcePath, start: node.getStart(source), end: node.getEnd() }, definition: { relativePath: definitionPath, range: { start: declaration.getStart(), end: declaration.getEnd() } } });
+        if (declaration && definitionPath && allowed.has(definitionPath) && from && to) references.push({ kind: isTypeReference(node) ? "TYPE" : "VALUE", resolution: "RESOLVED", from, to, targetName: resolved!.name, evidenceLocation: { relativePath: sourcePath, start: node.getStart(source), end: node.getEnd() }, definition: { relativePath: definitionPath, range: { start: declaration.getStart(), end: declaration.getEnd() } } });
       }
       ts.forEachChild(node, visit);
     }; visit(source);

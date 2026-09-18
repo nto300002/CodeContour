@@ -7,7 +7,7 @@ Issue #6（P0-13 / P0-14）のCall Analyzer結果を記録する。
 | TP | PASS | 直接Function、import、instance / static Method、async Function、nested / multiple caller、再帰Callを`CALLS`として取得する。Project内CalleeはqualifiedName、relativePath、Definition rangeでNavigationできる。 |
 | FP | PASS | computed property Call、call signatureを持たないCallback、`.gitignore`対象、Root外、Root外Symlink由来の実装Fileを確定Callにしない。 |
 | FN | UNKNOWN | runtime dispatch、reflection、dynamic import、computed propertyはPoC-0でCalleeを確定しない。 |
-| UNKNOWN | PASS | Compiler APIがCall signatureを確定できないCallはRelationを生成せず、誤った`RESOLVED`へ昇格しない。 |
+| UNKNOWN | PASS | Compiler APIがCall signatureを確定できないCallは、reasonとevidenceLocationを持つ`UNKNOWN` Relationとして保持し、誤った`RESOLVED`へ昇格しない。 |
 | External | PASS | 許可済みnode_modules `.d.ts`の実Call signatureだけを`EXTERNAL / RESOLVED`とし、Project内Calleeは付与しない。 |
 | Security | PASS | Compiler HostはRepository Readerが許可したApplication / Declaration File、Repository内node_modules `.d.ts`、TypeScript標準ライブラリだけを読取可能にする。 |
 

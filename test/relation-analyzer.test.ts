@@ -33,20 +33,20 @@ describe("analyzeImportRelations", () => {
     const root = await fixture({ "tsconfig.json": JSON.stringify({ include: ["src"] }), "src/main.ts": "import { external } from 'external'; import { missing } from './missing'; export const value = external;", "node_modules/external/index.d.ts": "export declare const external: string;" });
     const result = await analyzeImportRelations({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
     expect(result).toMatchObject({ ok: true }); if (!result.ok) return;
-    expect(result.relations).toEqual(expect.arrayContaining([expect.objectContaining({ importedName: "external", targetScope: "EXTERNAL", resolution: "RESOLVED", definition: undefined }), expect.objectContaining({ importedName: "missing", targetScope: "UNKNOWN", resolution: "UNKNOWN", definition: undefined })]));
+    expect(result.relations).toEqual(expect.arrayContaining([expect.objectContaining({ importedName: "external", targetScope: "EXTERNAL", resolution: "RESOLVED", definition: undefined }), expect.objectContaining({ importedName: "missing", targetScope: "UNKNOWN", resolution: "UNKNOWN", reason: "UNRESOLVED_ALIAS", definition: undefined })]));
   });
 
   it("does not mark a missing export from a resolved project module as external or resolved", async () => {
     const root = await fixture({ "tsconfig.json": JSON.stringify({ include: ["src"] }), "src/domain.ts": "export const present = true;", "src/main.ts": "import { missing } from './domain'; export const value = missing;" });
     const result = await analyzeImportRelations({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
     expect(result).toMatchObject({ ok: true }); if (!result.ok) return;
-    expect(result.relations).toEqual([expect.objectContaining({ importedName: "missing", targetScope: "PROJECT", resolution: "UNKNOWN", definition: undefined })]);
+    expect(result.relations).toEqual([expect.objectContaining({ importedName: "missing", targetScope: "PROJECT", resolution: "UNKNOWN", reason: "MISSING_EXPORT", definition: undefined })]);
   });
 
   it("marks a missing export from an existing external package as external but unknown", async () => {
     const root = await fixture({ "tsconfig.json": JSON.stringify({ include: ["src"] }), "src/main.ts": "import { missing } from 'external'; export const value = missing;", "node_modules/external/index.d.ts": "export declare const present: string;" });
     const result = await analyzeImportRelations({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
     expect(result).toMatchObject({ ok: true }); if (!result.ok) return;
-    expect(result.relations).toEqual([expect.objectContaining({ importedName: "missing", targetScope: "EXTERNAL", resolution: "UNKNOWN", definition: undefined })]);
+    expect(result.relations).toEqual([expect.objectContaining({ importedName: "missing", targetScope: "EXTERNAL", resolution: "UNKNOWN", reason: "MISSING_EXPORT", definition: undefined })]);
   });
 });

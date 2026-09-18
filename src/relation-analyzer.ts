@@ -2,9 +2,10 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { realpathSync } from "node:fs";
 import ts from "typescript";
 import { loadTypeScriptProject, type RepositoryReaderErrorCode } from "./repository-reader.js";
+import { classifyResolution, type ResolutionReason, type ResolutionState } from "./relation-resolution.js";
 
 export interface DefinitionLocation { relativePath: string; range: { start: number; end: number }; }
-export interface ImportRelation { type: "IMPORTS"; importedName: string; localName: string; targetScope: "PROJECT" | "EXTERNAL" | "UNKNOWN"; resolution: "RESOLVED" | "UNKNOWN"; evidenceLocation: { relativePath: string; start: number; end: number }; definition?: DefinitionLocation; }
+export interface ImportRelation { type: "IMPORTS"; importedName: string; localName: string; targetScope: "PROJECT" | "EXTERNAL" | "UNKNOWN"; resolution: ResolutionState; reason?: ResolutionReason; evidenceLocation: { relativePath: string; start: number; end: number }; definition?: DefinitionLocation; }
 export type RelationAnalyzerResult = { ok: true; relations: ImportRelation[] } | { ok: false; error: { code: RepositoryReaderErrorCode; message: string } };
 
 function compilerPathToAbsolute(root: string, fileName: string): string {
@@ -69,8 +70,11 @@ export async function analyzeImportRelations(input: { repositoryRoot: string; ts
           const moduleIsProject = resolvedModuleRelativePath !== undefined && allowedFiles.has(resolvedModuleRelativePath);
           const targetScope = definition ? "PROJECT" : moduleIsProject ? "PROJECT" : moduleResolution ? "EXTERNAL" : "UNKNOWN";
           const externalExportExists = !moduleIsProject && exportedSymbol !== undefined;
-          const resolution = definition || externalExportExists ? "RESOLVED" : "UNKNOWN";
-          relations.push({ type: "IMPORTS", importedName, localName: name.text, targetScope, resolution, evidenceLocation: { relativePath: sourcePath, start: node.moduleSpecifier.getStart(source), end: node.moduleSpecifier.getEnd() }, definition });
+          const classification = classifyResolution({
+            confirmed: definition !== undefined || externalExportExists,
+            unknownReason: moduleResolution ? "MISSING_EXPORT" : "UNRESOLVED_ALIAS",
+          });
+          relations.push({ type: "IMPORTS", importedName, localName: name.text, targetScope, ...classification, evidenceLocation: { relativePath: sourcePath, start: node.moduleSpecifier.getStart(source), end: node.moduleSpecifier.getEnd() }, definition });
         };
         if (node.importClause.name) add(node.importClause.name, "default");
         const bindings = node.importClause.namedBindings;

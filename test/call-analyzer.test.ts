@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { analyzeCalls } from "../src/call-analyzer.js";
+import { evaluateResolutionMetrics, summarizeResolutions } from "../src/relation-resolution.js";
 
 const dirs: string[] = [];
 async function fixture(files: Record<string, string>): Promise<string> {
@@ -86,16 +87,81 @@ describe("analyzeCalls", () => {
     })]);
   });
 
-  it("marks declared external calls and excludes computed and unresolved calls", async () => {
+  it("marks a call through an interface contract as inferred with its evidence", async () => {
     const root = await fixture({
       "tsconfig.json": JSON.stringify({ include: ["src"] }),
-      "node_modules/external/index.d.ts": "export declare function external(): void;",
-      "src/main.ts": "import { external } from 'external'; const service: Record<string, () => void> = {}; const action = 'run'; declare const callback: unknown; export function caller() { external(); service[action](); callback(); }",
+      "src/main.ts": "export interface Runner { run(): void; } export function caller(runner: Runner) { runner.run(); }",
     });
     const result = await analyzeCalls({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
     expect(result).toMatchObject({ ok: true });
     if (!result.ok) return;
-    expect(result.calls).toEqual([expect.objectContaining({ targetScope: "EXTERNAL", resolution: "RESOLVED", callee: undefined })]);
+    expect(result.calls).toEqual([expect.objectContaining({
+      targetScope: "PROJECT", resolution: "INFERRED", reason: "DECLARED_INTERFACE_MEMBER",
+      inferenceEvidence: "Interface member declaration", callee: expect.objectContaining({ qualifiedName: "Runner.run" }),
+    })]);
+    expect(result.calls[0].inferenceEvidence).toBe("Interface member declaration");
+    expect(summarizeResolutions(result.calls)).toEqual({
+      total: 1,
+      byResolution: { RESOLVED: 0, INFERRED: 1, UNKNOWN: 0 },
+      byReason: { DECLARED_INTERFACE_MEMBER: 1 },
+    });
+  });
+
+  it("keeps unsupported dynamic imports as unknown without stopping other calls", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/main.ts": "export function direct() {} export async function caller() { direct(); await import('./runtime'); }",
+    });
+    const result = await analyzeCalls({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ resolution: "RESOLVED", callee: expect.objectContaining({ qualifiedName: "direct" }) }),
+      expect.objectContaining({ targetScope: "UNKNOWN", resolution: "UNKNOWN", reason: "UNSUPPORTED_SYNTAX" }),
+    ]));
+  });
+
+  it("measures fixture expectations against analyzer output without counting unknown as resolved", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/main.ts": "export function direct() {} export interface Runner { run(): void; } export function caller(runner: Runner, action: string) { direct(); runner.run(); ({ run() {} } as Record<string, () => void>)[action](); }",
+    });
+    const result = await analyzeCalls({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    const syntaxCategory = (reason: string | undefined, resolution: string) => reason === "DYNAMIC_PROPERTY_ACCESS"
+      ? "COMPUTED_PROPERTY_CALL" : resolution === "INFERRED" ? "INTERFACE_MEMBER_CALL" : "DIRECT_CALL";
+    const actual = result.calls.map((call) => ({
+      type: call.type, from: call.caller.qualifiedName, to: call.callee?.qualifiedName,
+      resolution: call.resolution, reason: call.reason, syntaxCategory: syntaxCategory(call.reason, call.resolution),
+    }));
+    const expected = [
+      { type: "CALLS", from: "caller", to: "direct", resolution: "RESOLVED", syntaxCategory: "DIRECT_CALL" },
+      { type: "CALLS", from: "caller", to: "Runner.run", resolution: "INFERRED", reason: "DECLARED_INTERFACE_MEMBER", syntaxCategory: "INTERFACE_MEMBER_CALL" },
+      { type: "CALLS", from: "caller", resolution: "UNKNOWN", reason: "DYNAMIC_PROPERTY_ACCESS", syntaxCategory: "COMPUTED_PROPERTY_CALL" },
+    ] as const;
+    expect(evaluateResolutionMetrics(expected, actual)).toEqual({
+      tp: 2, fp: 0, fn: 0, unknown: 1,
+      bySyntaxCategory: { DIRECT_CALL: 1, INTERFACE_MEMBER_CALL: 1, COMPUTED_PROPERTY_CALL: 1 },
+      byReason: { DECLARED_INTERFACE_MEMBER: 1, DYNAMIC_PROPERTY_ACCESS: 1 },
+    });
+  });
+
+  it("marks declared external calls and retains dynamic and unresolved calls as unknown", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "node_modules/external/index.d.ts": "export declare function external(): void; export declare function present(): void;",
+      "src/main.ts": "import { external, missing } from 'external'; const service: Record<string, () => void> = {}; const action = 'run'; declare const callback: unknown; export function caller() { external(); service[action](); callback(); missing(); }",
+    });
+    const result = await analyzeCalls({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ targetScope: "EXTERNAL", resolution: "RESOLVED" }),
+      expect.objectContaining({ targetScope: "UNKNOWN", resolution: "UNKNOWN", reason: "DYNAMIC_PROPERTY_ACCESS" }),
+      expect.objectContaining({ targetScope: "UNKNOWN", resolution: "UNKNOWN", reason: "UNRESOLVED_CALL_SIGNATURE" }),
+      expect.objectContaining({ targetScope: "EXTERNAL", resolution: "UNKNOWN", reason: "MISSING_EXPORT" }),
+    ]));
   });
 
   it("does not read ignored or root-external implementation calls", async () => {
@@ -110,7 +176,10 @@ describe("analyzeCalls", () => {
     try {
       const result = await analyzeCalls({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
       expect(result).toMatchObject({ ok: true });
-      if (result.ok) expect(result.calls).toEqual([]);
+      if (result.ok) expect(result.calls).toEqual([
+        expect.objectContaining({ targetScope: "UNKNOWN", resolution: "UNKNOWN", reason: "UNRESOLVED_ALIAS" }),
+        expect.objectContaining({ targetScope: "UNKNOWN", resolution: "UNKNOWN", reason: "UNRESOLVED_ALIAS" }),
+      ]);
     } finally { await rm(outside, { force: true }); }
   });
 
@@ -125,7 +194,9 @@ describe("analyzeCalls", () => {
     try {
       const result = await analyzeCalls({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
       expect(result).toMatchObject({ ok: true });
-      if (result.ok) expect(result.calls).toEqual([]);
+      if (result.ok) expect(result.calls).toEqual([
+        expect.objectContaining({ targetScope: "UNKNOWN", resolution: "UNKNOWN", reason: "UNRESOLVED_ALIAS" }),
+      ]);
     } finally { await rm(outside, { force: true }); }
   });
 });
