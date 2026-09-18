@@ -103,6 +103,7 @@ describe("createSymbolIndex", () => {
     expect(result).toMatchObject({ ok: true });
     if (result.ok) {
       expect(result.symbols).toEqual(expect.arrayContaining([expect.objectContaining({ name: "createUser", signature: "() => DomainUser" })]));
+      expect(result.semanticDiagnostics).not.toEqual(expect.arrayContaining([expect.stringContaining("Cannot find name 'DomainUser'")]));
       expect(result.symbols.every((symbol) => symbol.relativePath !== "src/globals.d.ts")).toBe(true);
     }
   });

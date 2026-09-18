@@ -20,6 +20,7 @@ export type RepositoryReaderResult =
   | {
       ok: true;
       files: string[];
+      declarationFiles: string[];
       compilerOptions: ts.CompilerOptions;
       configFilePath: string;
       skippedFiles: Array<{ path: string; reason: SkippedFileReason }>;
@@ -32,6 +33,7 @@ export interface LoadTypeScriptProjectInput {
 }
 
 const applicationFilePattern = /\.tsx?$/i;
+const declarationFilePattern = /\.d\.ts$/i;
 const permanentlyIgnoredDirectories = new Set([".git", "node_modules"]);
 
 function isWithinRoot(root: string, candidate: string): boolean {
@@ -186,9 +188,10 @@ export async function loadTypeScriptProject(input: LoadTypeScriptProjectInput): 
   }
 
   const files: string[] = [];
+  const declarationFiles: string[] = [];
   const skippedFiles: Array<{ path: string; reason: SkippedFileReason }> = [];
   for (const configuredFile of parsed.fileNames) {
-    if (!applicationFilePattern.test(configuredFile)) continue;
+    if (!applicationFilePattern.test(configuredFile) && !declarationFilePattern.test(configuredFile)) continue;
 
     const requestedFile = resolve(configuredFile);
     if (!isWithinRoot(root, requestedFile)) {
@@ -224,12 +227,14 @@ export async function loadTypeScriptProject(input: LoadTypeScriptProjectInput): 
       skippedFiles.push({ path: logicalRelativeFile, reason: "GITIGNORE" });
       continue;
     }
-    files.push(canonicalRelativeFile);
+    if (declarationFilePattern.test(canonicalRelativeFile)) declarationFiles.push(canonicalRelativeFile);
+    else files.push(canonicalRelativeFile);
   }
 
   return {
     ok: true,
     files: [...new Set(files)].sort(),
+    declarationFiles: [...new Set(declarationFiles)].sort(),
     compilerOptions: parsed.options,
     configFilePath: relativePath(root, configPath),
     skippedFiles,

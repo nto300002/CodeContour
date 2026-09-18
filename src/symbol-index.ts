@@ -6,7 +6,7 @@ import { loadTypeScriptProject, type RepositoryReaderErrorCode } from "./reposit
 
 export type SymbolKind = "FUNCTION" | "CLASS" | "METHOD" | "INTERFACE" | "TYPE_ALIAS" | "VARIABLE";
 export interface AnalyzerSymbol { id: string; kind: SymbolKind; name: string; qualifiedName: string; relativePath: string; range: { start: number; end: number }; signature: string; }
-export type SymbolIndexResult = { ok: true; symbols: AnalyzerSymbol[]; filesWithParseErrors: string[] } | { ok: false; error: { code: RepositoryReaderErrorCode; message: string } };
+export type SymbolIndexResult = { ok: true; symbols: AnalyzerSymbol[]; filesWithParseErrors: string[]; semanticDiagnostics: string[] } | { ok: false; error: { code: RepositoryReaderErrorCode; message: string } };
 export interface SymbolIndexInput { repositoryRoot: string; tsconfigPath: string; }
 
 function kindOf(node: ts.Node): SymbolKind | undefined {
@@ -34,8 +34,8 @@ function signatureOf(node: ts.Node, checker: ts.TypeChecker): string {
 export async function createSymbolIndex(input: SymbolIndexInput): Promise<SymbolIndexResult> {
   const project = await loadTypeScriptProject(input);
   if (!project.ok) return project;
-  const rootNames = project.files.map((file) => resolve(input.repositoryRoot, file));
-  const indexedFiles = new Set(project.files.filter((file) => !file.endsWith(".d.ts")));
+  const rootNames = [...project.files, ...project.declarationFiles].map((file) => resolve(input.repositoryRoot, file));
+  const indexedFiles = new Set(project.files);
   const canonicalPath = (fileName: string) => { try { return realpathSync(fileName); } catch { return undefined; } };
   const approvedFiles = new Set(rootNames.map(canonicalPath).filter((file): file is string => file !== undefined));
   const repositoryNodeModules = canonicalPath(resolve(input.repositoryRoot, "node_modules"));
@@ -75,5 +75,5 @@ export async function createSymbolIndex(input: SymbolIndexInput): Promise<Symbol
     };
     visit(sourceFile, []);
   }
-  return { ok: true, symbols, filesWithParseErrors: [...new Set(filesWithParseErrors)].sort() };
+  return { ok: true, symbols, filesWithParseErrors: [...new Set(filesWithParseErrors)].sort(), semanticDiagnostics: program.getSemanticDiagnostics().map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")) };
 }
