@@ -18,12 +18,17 @@ export interface Process {
   confirmation: "CONFIRMED";
   steps: ProcessStep[];
 }
+export interface ProcessSymbolLink {
+  processId: string; symbolId: string; name: string; kind: string; qualifiedName: string;
+  relativePath: string; range: { start: number; end: number };
+}
 
 export interface UserModel {
   version: 1;
   projectId: string;
   features: Feature[];
   processes: Process[];
+  processSymbolLinks: ProcessSymbolLink[];
 }
 
 export interface UserModelStore {
@@ -53,7 +58,7 @@ export class UserModelFileStore implements UserModelStore {
       const parsed: unknown = JSON.parse(await readFile(this.filePath, "utf8"));
       if (!isUserModel(parsed)) throw new Error("user-model.json has an invalid shape.");
       if (parsed.projectId !== this.projectId) throw new Error("user-model.json belongs to a different project.");
-      return { ...parsed, processes: parsed.processes ?? [] };
+      return { ...parsed, processes: parsed.processes ?? [], processSymbolLinks: parsed.processSymbolLinks ?? [] };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyUserModel(this.projectId);
       throw error;
@@ -112,7 +117,7 @@ export function featureViewItems(model: UserModel): Array<{ id: string; label: s
   return model.features.map((feature) => ({ id: feature.id, label: feature.name }));
 }
 
-function emptyUserModel(projectId: string): UserModel { return { version: 1, projectId, features: [], processes: [] }; }
+function emptyUserModel(projectId: string): UserModel { return { version: 1, projectId, features: [], processes: [], processSymbolLinks: [] }; }
 
 function isUserModel(value: unknown): value is UserModel {
   if (typeof value !== "object" || value === null) return false;
@@ -121,7 +126,15 @@ function isUserModel(value: unknown): value is UserModel {
     && model.features.every((feature) => typeof feature === "object" && feature !== null
       && typeof (feature as Feature).id === "string" && typeof (feature as Feature).name === "string"
       && (feature as Feature).origin === "USER" && (feature as Feature).confirmation === "CONFIRMED")
-    && (model.processes === undefined || Array.isArray(model.processes) && model.processes.every(isProcess));
+    && (model.processes === undefined || Array.isArray(model.processes) && model.processes.every(isProcess))
+    && (model.processSymbolLinks === undefined || Array.isArray(model.processSymbolLinks) && model.processSymbolLinks.every(isProcessSymbolLink));
+}
+function isProcessSymbolLink(value: unknown): value is ProcessSymbolLink {
+  if (typeof value !== "object" || value === null) return false;
+  const link = value as Partial<ProcessSymbolLink>;
+  return typeof link.processId === "string" && typeof link.symbolId === "string" && typeof link.name === "string"
+    && typeof link.kind === "string" && typeof link.qualifiedName === "string" && typeof link.relativePath === "string"
+    && typeof link.range?.start === "number" && typeof link.range?.end === "number";
 }
 
 function isProcess(value: unknown): value is Process {
