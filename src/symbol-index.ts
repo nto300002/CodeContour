@@ -32,12 +32,13 @@ export async function createSymbolIndex(input: SymbolIndexInput): Promise<Symbol
   const project = await loadTypeScriptProject(input);
   if (!project.ok) return project;
   const rootNames = project.files.map((file) => resolve(input.repositoryRoot, file));
+  const indexedFiles = new Set(project.files);
   const program = ts.createProgram({ rootNames, options: project.compilerOptions });
   const checker = program.getTypeChecker(); const symbols: AnalyzerSymbol[] = []; const filesWithParseErrors: string[] = [];
   for (const sourceFile of program.getSourceFiles()) {
     const absolute = resolve(sourceFile.fileName); const root = resolve(input.repositoryRoot);
     const path = relative(root, absolute).split(sep).join("/");
-    if (path.startsWith("../") || path === ".." || path.includes("node_modules/")) continue;
+    if (!indexedFiles.has(path)) continue;
     const parseDiagnostics = (sourceFile as unknown as { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics;
     if (parseDiagnostics.length) { filesWithParseErrors.push(path); continue; }
     const visit = (node: ts.Node, scope: string[]) => {

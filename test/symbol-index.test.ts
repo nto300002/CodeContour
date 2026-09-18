@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import { afterEach, describe, expect, it } from "vitest";
 import { createSymbolIndex } from "../src/symbol-index.js";
 
@@ -34,5 +35,51 @@ describe("createSymbolIndex", () => {
     const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
     expect(result).toMatchObject({ ok: true, filesWithParseErrors: ["src/bad.ts"] });
     if (result.ok) expect(result.symbols).toEqual(expect.arrayContaining([expect.objectContaining({ name: "good" })]));
+  });
+
+  it("only indexes reader-approved files even when excluded code is imported", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      ".gitignore": "src/private.ts\n",
+      "src/main.ts": "import { privateValue } from './private'; export const publicValue = () => privateValue;",
+      "src/private.ts": "export const privateValue = 1;",
+    });
+    const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) expect(result.symbols.map((symbol) => symbol.name)).toEqual(["publicValue"]);
+  });
+
+  it("distinguishes same-name symbols by file and scope, and omits anonymous functions", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ include: ["src"] }),
+      "src/a.ts": "export function duplicate() {} export const anonymous = function() {}; export class A { duplicate() {} }",
+      "src/b.ts": "export function duplicate() {}",
+    });
+    const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    const duplicates = result.symbols.filter((symbol) => symbol.name === "duplicate");
+    expect(new Set(duplicates.map((symbol) => symbol.id)).size).toBe(3);
+    expect(duplicates.map((symbol) => symbol.qualifiedName)).toEqual(expect.arrayContaining(["duplicate", "A.duplicate"]));
+    expect(result.symbols.map((symbol) => symbol.qualifiedName)).not.toContain("<anonymous>");
+  });
+
+  it("uses external declarations for type resolution without indexing their symbols", async () => {
+    const root = await fixture({
+      "tsconfig.json": JSON.stringify({ compilerOptions: { moduleResolution: "Node" }, include: ["src"] }),
+      "src/main.ts": "import type { External } from 'external'; export const value = (): External => ({ id: '1' });",
+      "node_modules/external/index.d.ts": "export interface External { id: string }",
+    });
+    const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) { expect(result.symbols).toEqual(expect.arrayContaining([expect.objectContaining({ name: "value", signature: "() => External" })])); expect(result.symbols.every((symbol) => !symbol.relativePath.includes("node_modules"))).toBe(true); }
+  });
+
+  it("matches the saved expected IR projection", async () => {
+    const root = await fixture({ "tsconfig.json": JSON.stringify({ include: ["src"] }), "src/main.ts": "export function expected(input: string): number { return input.length; }" });
+    const expected = JSON.parse(await readFile(new URL("./fixtures/symbol-index.expected.json", import.meta.url), "utf8"));
+    const result = await createSymbolIndex({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) expect(result.symbols.map(({ id: _id, range: _range, ...symbol }) => symbol)).toEqual(expected);
   });
 });
