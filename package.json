@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "measure:poc-0": "CODECONTOUR_MEASUREMENT_OUTPUT=docs/poc-0-issue-13-measurements.json vitest run test/analysis-measurement.test.ts",
+    "measure:repository": "CODECONTOUR_REQUIRE_REAL_MEASUREMENT=1 vitest run test/real-repository-measurement.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -391,7 +391,7 @@ expected-relations.json
 | P0-19 | ProcessへSymbolを関連付けられる |
 | P0-20 | Data FlowへEvidence Symbolを関連付けられる |
 | P0-21 | Feature → Process → Symbol → SourceをUIで往復できる |
-| P0-22 | 実Repositoryで致命的な解析停止を起こさない |
+| P0-22 | 固定CommitのSmall / Medium実Repositoryで、代表Scopeの監査を通し致命的な解析停止を起こさない |
 
 PoC-0の必須実装GateはP0-01からP0-22とする。P0-S01は合否へ含めない。
 
@@ -452,6 +452,34 @@ UNKNOWN
 
 False PositiveとFalse Negativeは構文・原因別に分類する。PoC-0ではTier A 98%等をGateにしないが、存在しないRelationを確定表示するFalse Positiveを特に重く扱う。
 
+PoC-0の実Repository精度は、Repository内の**全Relation精度**を主張しない。固定Commitごとに事前定義する代表Scopeの監査結果を正式なGateとする。監査契約は次の形式で保存する。
+
+```json
+{
+  "repository": "owner/name",
+  "commit": "fixed commit SHA",
+  "auditScopes": [
+    { "type": "CALLS", "from": "stable caller identity" }
+  ],
+  "expectedRelations": []
+}
+```
+
+`auditScopes`は非空で、`type / from`を持つ。`expectedRelations`が空であってもScopeは監査され、Scope内のactual RelationはFPとして検出する。各expected RelationはScopeに属し、`type / from / resolution / syntaxCategory`を持つ。測定RunnerはRepository・Commitの一致、contract hash、FP 0、FN 0、期待UNKNOWNのreason一致をfail-closedで検証する。
+
+代表Scopeはランダム抽出しない。Small / Mediumを合わせたPoC-0の監査ポートフォリオとして、次の軸をFixtureと固定Commitの実Repository Scopeで必須化する。
+
+| 軸 | 必須ケース |
+| --- | --- |
+| Relation種別 | Import、Value Reference、Type Reference、Call |
+| Resolution | RESOLVED、INFERRED、UNKNOWN |
+| Import形態 | relative、paths alias、external、missing export |
+| Call形態 | direct、instance/static、interface contract、dynamic/unresolved |
+| Security Boundary | Ignore、Root外、symlink、external `.d.ts` |
+| Repository規模 | Small、Medium |
+
+Security Boundaryと、対象Repositoryに存在しない構文のケースは専用Fixtureで確認する。実Repositoryのmanifestは、そのRepositoryで実在する代表Scopeだけを監査し、未監査範囲をReportへ残す。
+
 ### 14.2 性能
 
 少なくとも次を記録する。
@@ -487,6 +515,8 @@ UNKNOWN count / ratio
 - Feature → Process → Symbol → Sourceが実Repositoryでも自然に使える
 - Data Flow Evidenceをコードへ接続できる
 - Medium Repositoryで現実的な性能傾向を示す
+- 固定CommitのSmall / Medium実Repositoryが`COMPLETE`または理由付き`PARTIAL`で終了し、事前定義した代表ScopeでFP / FNが0である
+- UNKNOWNは期待するreasonを保持し、Root外・Ignore・外部SymbolをProject Relationへ誤昇格しない
 
 ### 15.2 Conditional Go
 
