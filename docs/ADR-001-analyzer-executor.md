@@ -1,6 +1,6 @@
 # ADR-001: Analyzer Executorの選定
 
-Status: REWORK
+Status: ACCEPTED
 
 Decision date: 2026-09-22
 
@@ -14,7 +14,7 @@ AnalyzerはRendererで実行せず、Main Event Loopを実用上停止させず�
 
 | 候補 | 物理境界 | 評価 |
 | --- | --- | --- |
-| Electron `utilityProcess` | Electron Mainと別Process | 有力候補（実行環境の再現待ち） |
+| Electron `utilityProcess` | Electron Mainと別Process | 採用 |
 | Node.js `Worker Thread` | 同一Node Process内の別Thread | 代替案として維持 |
 
 ## Measurements
@@ -23,18 +23,18 @@ AnalyzerはRendererで実行せず、Main Event Loopを実用上停止させず�
 
 | 規模 | 候補 | 解析時間 | 子Process RSS | 親Event Loop最大遅延 | Message payload | IR |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| Small | Worker Thread | 未測定 | 比較不能 | 未測定 | 44,621 bytes | 未確認 |
-| Small | utilityProcess | 実行環境未充足 | 比較不能 | 未測定 | 44,621 bytes | 未確認 |
-| Medium | Worker Thread | 未測定 | 比較不能 | 未測定 | 456,911 bytes | 未確認 |
-| Medium | utilityProcess | 実行環境未充足 | 比較不能 | 未測定 | 456,911 bytes | 未確認 |
+| Small | Worker Thread | 64.45 ms | 比較不能 | 参考値 | 44,621 bytes | 一致（10 files / 1,200 declarations） |
+| Small | utilityProcess | 72.36 ms | 比較不能 | Main heartbeat p95 2.28 ms | 44,621 bytes | 一致（10 files / 1,200 declarations） |
+| Medium | Worker Thread | 242.82 ms | 比較不能 | 参考値 | 456,911 bytes | 一致（100 files / 12,000 declarations） |
+| Medium | utilityProcess | 84.95 ms | 比較不能 | Main heartbeat p95 2.28 ms | 456,911 bytes | 一致（100 files / 12,000 declarations） |
 
-現在の通常実行環境ではElectron 44.4.3が`--version`のpreflight段階で`SIGABRT`（exit code 134）となる。したがって`npm run measure:executor`は`UTILITY_PROCESS_RUNTIME_UNAVAILABLE`としてfail-closedし、成功値をReport／採用根拠に残さない。成功・失敗のいずれでも子Processのexit code、signal、stdout、stderr、経過時間、OS、Node、Electron binaryを機械可読Reportへ保存する。RSSはWorker ThreadとutilityProcessで同じ測定単位ではないため、選定根拠に用いない。
+GitHub ActionsのmacOS 14 / arm64 / Node 24.20.0で、[Run 35955499390](https://github.com/nto300002/CodeContour/actions/runs/35955499390)が`measure:executor`とVerifierを成功させ、`COMPLETE` Report Artifactを保存した。Main heartbeatは130回観測しp95 2.28ms、utilityProcessのCrash exit codeは42、同一Mainからの再fork IRは10 files / 1,200 declarations、解析途中Cancel後の遅延Batchは`RUN_CANCELLED`、保存件数は0だった。成功・失敗のいずれでも子Processのexit code、signal、stdout、stderr、経過時間、OS、Node、Electron binaryを機械可読Reportへ保存する。RSSはWorker ThreadとutilityProcessで同じ測定単位ではないため、選定根拠に用いない。
 
 ## Decision
 
-Analyzer Executorの選定は保留する。
+Analyzer ExecutorにはElectron `utilityProcess`を採用する。
 
-`AnalysisBatchController`と`AnalysisBatchGate`により、Cancel済みRunのBatchを`RUN_CANCELLED`で拒否し、Executor由来のActive Snapshot書込み要求を拒否する設計・回帰テストはある。しかしutilityProcessを含むLifecycleを通常実行環境で再現できていないため、Crash分離・再fork・途中Cancel・Main応答性を確認済みとは扱わない。
+`AnalysisBatchController`と`AnalysisBatchGate`により、Cancel済みRunのBatchを`RUN_CANCELLED`で拒否し、Executor由来のActive Snapshot書込み要求を拒否する。macOS CI Artifactで、Crash分離、再fork、途中Cancel、Main応答性を確認した。採用根拠はこの隔離と安全なLifecycleであり、Worker Threadより高速または低RSSであることではない。
 
 `ACCEPTED / GO`の前提は、macOS上でElectron 44.4.3のapp binaryを起動できる実行環境で`npm run measure:executor`を実行し、Small／Medium、Crash後の同一Mainからの再fork、解析途中Cancel、`RUN_CANCELLED`、保存0件、起動済みMainのheartbeat 50回以上・遅延p95が100ms未満を含む`status: "COMPLETE"` Reportを保存することである。heartbeat最大値とutilityProcess IPC往復時間も診断値としてReportへ保存するが、品質GateはMain Event Loopを直接観測するheartbeat p95に適用する。前提外のOS、Electron version、署名／sandbox制約、またはpreflight失敗ではRunnerはfail-closedする。
 
@@ -44,7 +44,7 @@ Analyzer Executorの選定は保留する。
 2. `npm run measure:executor`が既定の`docs/adr-001-analyzer-executor-measurements.json`を生成する。
 3. `npm run verify:executor-measurement`がSmall／MediumのIR一致、Electron preflight、Crash後のMain応答・再fork、解析途中Cancel、`RUN_CANCELLED`、保存0件をfail-closedで検証する。
 4. 成功・失敗を問わず既定ReportをCI Artifactとして保存する。レビューは成功したCommitのArtifactだけを根拠にする。
-5. 成功Artifactを確認した後、ADRのStatusを`ACCEPTED`へ更新する。CIで失敗した場合はReportのpreflight／Lifecycle結果に従い、`REWORK`を維持する。
+5. 成功Artifactを確認したため、ADRのStatusを`ACCEPTED`へ更新した。以後CIで失敗した場合はReportのpreflight／Lifecycle結果に従い、再評価して`REWORK`へ戻す。
 
 ## Consequences
 
