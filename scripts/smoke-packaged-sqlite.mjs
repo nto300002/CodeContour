@@ -29,7 +29,7 @@ async function main() {
   let report;
   try {
     const files = await filesBelow(packageRoot);
-    const executable = files.find((path) => /\.app\/Contents\/MacOS\/[^/]+$/.test(path));
+    const executable = files.find((path) => /\.app\/Contents\/MacOS\/[^/]+$/.test(path) && !path.includes("/Contents/Frameworks/"));
     if (!executable) throw new Error("Packaged Electron executable was not found");
     const candidates = ["better-sqlite3", "node:sqlite"].map((driver) => {
       const samples = Array.from({ length: sampleCount }, () => {
