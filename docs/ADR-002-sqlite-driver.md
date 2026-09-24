@@ -2,7 +2,7 @@
 
 ## Status
 
-PROPOSED — packaged-app Gateの成功Reportを取得後に`ACCEPTED`へ更新する。
+PROPOSED — packaged-app Gateは完了した。署名済み配布物を必須Gateとするかの決定と、その証跡を取得後に`ACCEPTED`へ更新する。
 
 ## Context
 
@@ -22,6 +22,14 @@ MVPのCanonical Data、Analysis Snapshot、Batch GateはSQLiteへ保存する。
 `npm run measure:sqlite-driver` は同一の`SqliteSnapshotService`で両候補のMigration、bulk insert、promotion時間とDBサイズをJSONへ保存する。速度・サイズは候補選定の唯一の根拠にはしない。
 
 `npm run smoke:sqlite-packaged` はForgeのASAR設定とnative module unpack pluginを使い、macOS arm64配布物から両候補を5回ずつロードしてSQLite read/writeを実行する。Reportにはpackage生成時間、配布物サイズ、各候補のMain Event Loop heartbeat遅延p95を保存する。heartbeatの許容値は100ms以下とする。
+
+2026-09-24に[GitHub Actions Run 35961097858](https://github.com/nto300002/CodeContour/actions/runs/35961097858)で実行した結果は次のとおり。
+
+| Environment | Package build | Package size | better-sqlite3 p95 | node:sqlite p95 |
+| --- | ---: | ---: | ---: | ---: |
+| macOS 14 / arm64 / Node 24.20.0 | 6,970ms | 543,380,370 bytes | 26.49ms | 30.16ms |
+
+両候補は5/5 sampleで`COMPLETE`となり、100msのheartbeat Gateを満たした。`better-sqlite3`はASAR unpack済み配布物からnative moduleをロードしてSQLite read/writeに成功した。
 
 ## Provisional decision
 

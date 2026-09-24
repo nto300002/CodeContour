@@ -28,9 +28,9 @@ SQLite Driver選定を`GO`にするための残件は、次の四区分に分か
 | ID | タスク | AIが行う操作・コマンド | 入力 | 完了証跡 |
 | --- | --- | --- | --- |
 | A-01 | DB Serviceを追加する | `src/`へ`DatabaseService`とMain側Controllerを実装 | 既存`SqliteDriver`、`SqliteSnapshotService` | TypeScript型検査Green |
-| A-02 | Single Writerを固定する | utilityProcess Message型からDB path、SQL、Driver APIを除去 | Executorの既存Message protocol | utilityProcess入力が解析Batchだけであるテスト |
+| A-02 | Single Writerを固定する | utilityProcess IPC Message型からDB path、SQL、Driver APIを除去 | Executorの既存Message protocol | utilityProcess入力が解析Batchだけであるテスト |
 | A-03 | Main側の保存経路を接続する | `AnalysisBatchGate.accept()`成功後だけ`SqliteSnapshotService.acceptBatch()`を呼ぶ | run / snapshot / sequence情報 | 正常BatchがStagingへ1回だけ保存される統合テスト |
-| A-04 | 拒否ケースを回帰保護する | cancelled / stale / duplicateケースのFixtureを追加 | `AnalysisBatchGate`とSQLite service | 各ケースのSQLite保存件数が0件 |
+| A-04 | 拒否ケースを回帰保護する | cancelled / stale / duplicateケースのFixtureを追加 | `AnalysisBatchGate`とSQLite service | 拒否Batchによる追加SQLite保存が0件（Staging writer呼出なし） |
 | A-05 | Active Snapshot保護を確認する | fail / cancel後にactive pointerが不変か検証 | Snapshot Fixture | active snapshot不変テスト |
 | A-06 | Driver比較を保守する | `npm run measure:sqlite-driver`、`npm test`、`npm run typecheck`、`git diff --check`を実行 | 作業tree | JSON measurement、Greenログ |
 | A-07 | Report / ADRを整合させる | 成功・失敗の範囲を文書へ反映する | 実行結果 | 実測と矛盾しないADR / Report |
@@ -42,10 +42,10 @@ AIはA-01からA-07を、資格情報を受け取らずにTDDで実装・検証�
 | ID | タスク | AIが行う操作・コマンド | 外部側の前提 | 完了証跡 |
 | --- | --- | --- | --- |
 | B-01 | CI workflowを実装する | `.github/workflows/sqlite-driver-spike.yml`を追加・修正 | GitHub Actionsが有効 | workflow定義のレビュー |
-| B-02 | macOS arm64 smokeを実行する | CIで`npm ci`、`npm run smoke:sqlite-packaged`を起動する設定を作る | `macos-14` runner、Node 24 | Artifactの`COMPLETE` Report |
-| B-03 | native rebuildを確認する | Forge / ASAR unpack構成を修正し再実行する | CIでElectron ABI向けrebuildが動く | `better-sqlite3`の配布物内ロード成功 |
-| B-04 | 両Driverの配布物検証をGateする | 5回の起動とheartbeat p95検証をscript化する | arm64配布物を起動できるrunner | 両候補`COMPLETE`、p95 <= 100ms |
-| B-05 | Report Artifactを検証する | `npm run verify:sqlite-spike`をCI stepに追加する | CI jobの結果取得 | build duration、size、全sampleを含むJSON |
+| B-02 | macOS arm64 smokeを実行する | CIで`npm ci`、`npm run smoke:sqlite-packaged`を起動する設定を作る | `macos-14` runner、Node 24 | 完了: [Run 35961097858](https://github.com/nto300002/CodeContour/actions/runs/35961097858) の`COMPLETE` Artifact |
+| B-03 | native rebuildを確認する | Forge / ASAR unpack構成を修正し再実行する | CIでElectron ABI向けrebuildが動く | 完了: `better-sqlite3`の配布物内ロード成功 |
+| B-04 | 両Driverの配布物検証をGateする | 5回の起動とheartbeat p95検証をscript化する | arm64配布物を起動できるrunner | 完了: 両候補`COMPLETE`、p95 <= 100ms |
+| B-05 | Report Artifactを検証する | `npm run verify:sqlite-spike`をCI stepに追加する | CI jobの結果取得 | 完了: build duration、size、全sampleを含むJSON |
 
 AIはB-01からB-05のコードとworkflowを実装できる。実際の成功は、GitHub Actionsが対象Commitを実行した後にだけ確認できる。
 
@@ -77,22 +77,22 @@ AIはB-01からB-05のコードとworkflowを実装できる。実際の成功�
 | Snapshot安全性 | bulk insert、atomic promotion、duplicate / cancelled / stale batch拒否 | Snapshot contract / service test | 実装済み |
 | 開発時比較測定 | 同じService経由でMigration、bulk insert、promotion時間、DBサイズをJSONへ保存 | `npm run measure:sqlite-driver` | 実装済み |
 | 配布物Smokeのfail-closed化 | package出力欠落、native load失敗、heartbeat閾値超過を成功扱いにしない | `npm run smoke:sqlite-packaged` の`FAILED` Report | 実装済み |
-| Single Writer統合 | utilityProcessにSQLite接続・DB file path・Driverを渡さず、Main DB ServiceだけがBatchを保存する | `main-database-service.test.ts` | 実装済み |
-| Single Writer回帰保護 | Cancelled / stale / duplicate batchをMainの`AnalysisBatchGate`経由で拒否し、SQLite保存0件を確認する | `main-database-service.test.ts` | 実装済み |
+| Single Writer統合 | utilityProcess IPCにSQLite接続・DB file path・Driverを渡さず、Main DB ServiceだけがBatchを保存する | `main-database-service.test.ts` | 実装済み |
+| Single Writer回帰保護 | Cancelled / stale / duplicate batchをMainの`AnalysisBatchGate`経由で拒否し、拒否Batchによる追加SQLite保存がないことを確認する | `main-database-service.test.ts` | 実装済み |
 | ADR確定ロジック | `COMPLETE` Report以外ではADR-002を`ACCEPTED`へ更新できないよう文書・Verifierを維持する | Verifier / ADR review | 一部実装済み |
 
 ### 3.1 実装済み: Single Writer統合
 
-1. `MainDatabaseService`がSQLite Snapshot ServiceのMain側Facadeとなる。
+1. `MainDatabaseService`が、IPC上で唯一のSQLite保存経路となるMain側Facadeである。
 2. executor Messageは解析Batchだけを受け付け、DB path / SQL / Driver APIを含む入力を拒否する。
 3. Main側Controllerは`AnalysisBatchGate.accept()`成功後だけ`MainDatabaseService.saveStaging()`を呼ぶ。
 4. 統合テストで次を検証する。
    - 正常BatchはMain経由でのみStaging Snapshotへ保存される。
-   - Cancelled Batchは`RUN_CANCELLED`となり保存件数は0件のまま。
-   - Stale / duplicate Batchも保存件数を増やさない。
+   - Cancelled Batchは`RUN_CANCELLED`となり、Staging writerを呼ばない。
+   - Stale / duplicate BatchもStaging writerを呼ばず、既存SQLite保存を増やさない。
    - Active Snapshotは失敗・Cancel後も切り替わらない。
 
-この範囲はApple資格情報なしでTDD実装済みである。
+この範囲が保証するのは、アプリケーションIPC上のWrite責務境界である。utilityProcessのOSレベルのFilesystem権限や、配布物上での直接DB接続不能性はここでは主張しない。実SQLite／packaged appでの境界検証は区分Bの必須Gateとする。
 
 ## 4. コードだけでは完了できないこと
 

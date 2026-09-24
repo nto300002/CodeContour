@@ -15,21 +15,30 @@ describe("MainDatabaseService", () => {
 
     const gate = new AnalysisBatchGate("active");
     gate.begin({ analysisRunId: "run-b", stagingSnapshotId: "staging-b" });
-    const controller = new AnalysisBatchController(gate, database);
+    let stagingSaveCalls = 0;
+    const controller = new AnalysisBatchController(gate, {
+      saveStaging: (batch) => {
+        stagingSaveCalls += 1;
+        return database.saveStaging(batch);
+      },
+    });
 
     expect(controller.receiveFromExecutor({ type: "ANALYSIS_BATCH", batch: { analysisRunId: "run-b", stagingSnapshotId: "staging-b", sequenceNumber: 1, records: ["accepted"] } }))
       .toEqual({ accepted: true });
     expect(database.records("staging-b")).toEqual(["accepted"]);
+    expect(stagingSaveCalls).toBe(1);
 
     expect(controller.receiveFromExecutor({ type: "ANALYSIS_BATCH", batch: { analysisRunId: "run-b", stagingSnapshotId: "staging-b", sequenceNumber: 1, records: ["duplicate"] } }))
       .toEqual({ accepted: false, reason: "DUPLICATE_SEQUENCE" });
     expect(database.records("staging-b")).toEqual(["accepted"]);
+    expect(stagingSaveCalls).toBe(1);
 
     database.cancel("project", "run-b");
     gate.cancel("run-b");
     expect(controller.receiveFromExecutor({ type: "ANALYSIS_BATCH", batch: { analysisRunId: "run-b", stagingSnapshotId: "staging-b", sequenceNumber: 2, records: ["late"] } }))
       .toEqual({ accepted: false, reason: "RUN_CANCELLED" });
     expect(database.records("staging-b")).toEqual([]);
+    expect(stagingSaveCalls).toBe(1);
     expect(database.project("project")).toEqual({ activeSnapshotId: "active", currentRunId: null, currentStagingSnapshotId: null });
 
     database.startRun("project", "run-c", "staging-c");
@@ -37,6 +46,7 @@ describe("MainDatabaseService", () => {
     expect(controller.receiveFromExecutor({ type: "ANALYSIS_BATCH", batch: { analysisRunId: "run-b", stagingSnapshotId: "staging-b", sequenceNumber: 3, records: ["stale"] } }))
       .toEqual({ accepted: false, reason: "STALE_RUN" });
     expect(database.records("staging-c")).toEqual([]);
+    expect(stagingSaveCalls).toBe(1);
     driver.close();
   });
 
