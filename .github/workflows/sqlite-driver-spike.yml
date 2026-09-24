@@ -1,0 +1,47 @@
+name: SQLite driver spike
+
+on:
+  pull_request:
+    paths:
+      - "src/sqlite-*.ts"
+      - "test/sqlite-*.test.ts"
+      - "test/fixtures/sqlite-packaged-main.cjs"
+      - "scripts/smoke-packaged-sqlite.mjs"
+      - "scripts/run-packaged-sqlite-smoke.mjs"
+      - "scripts/verify-sqlite-spike.mjs"
+      - "forge.config.cjs"
+      - "package.json"
+      - "package-lock.json"
+      - "docs/ADR-002-sqlite-driver.md"
+      - "docs/architecture-spike-report.md"
+      - ".github/workflows/sqlite-driver-spike.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    name: macOS arm64 packaged SQLite gate
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --run test/sqlite-driver-contract.test.ts test/sqlite-snapshot-driver-contract.test.ts
+      - run: npm run measure:sqlite-driver
+      - run: npm run smoke:sqlite-packaged
+      - run: npm run verify:sqlite-spike
+      - name: Upload SQLite Spike reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-driver-spike-${{ github.sha }}
+          path: |
+            docs/adr-002-sqlite-driver-measurements.json
+            docs/adr-002-sqlite-packaged-smoke.json
+          if-no-files-found: error

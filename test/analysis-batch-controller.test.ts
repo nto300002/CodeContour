@@ -8,7 +8,7 @@ describe("AnalysisBatchController", () => {
     const gate = new AnalysisBatchGate("active");
     gate.begin({ analysisRunId: "run", stagingSnapshotId: "staging" });
     gate.cancel("run");
-    const controller = new AnalysisBatchController(gate, { saveStaging: (batch) => saved.push(batch) });
+    const controller = new AnalysisBatchController(gate, { saveStaging: (batch) => { saved.push(batch); } });
 
     expect(controller.receiveFromExecutor({ type: "ANALYSIS_BATCH", batch: { analysisRunId: "run", stagingSnapshotId: "staging", sequenceNumber: 1 } }))
       .toEqual({ accepted: false, reason: "RUN_CANCELLED" });
@@ -19,7 +19,7 @@ describe("AnalysisBatchController", () => {
     const saved: AnalysisResultBatch[] = [];
     const gate = new AnalysisBatchGate("active");
     gate.begin({ analysisRunId: "run", stagingSnapshotId: "staging" });
-    const controller = new AnalysisBatchController(gate, { saveStaging: (batch) => saved.push(batch) });
+    const controller = new AnalysisBatchController(gate, { saveStaging: (batch) => { saved.push(batch); } });
 
     expect(controller.receiveFromExecutor({ type: "ACTIVE_SNAPSHOT_WRITE", batch: { analysisRunId: "run", stagingSnapshotId: "active", sequenceNumber: 1 } }))
       .toEqual({ accepted: false, reason: "EXECUTOR_WRITE_DENIED" });

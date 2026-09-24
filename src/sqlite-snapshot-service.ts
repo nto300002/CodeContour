@@ -1,4 +1,6 @@
-import { type SqliteMigration, NodeSqliteDriver } from "./sqlite-driver.js";
+import { type SqliteDriver, type SqliteMigration } from "./sqlite-driver.js";
+import { getTableName } from "drizzle-orm";
+import { analysisBatches, analysisRecords, analysisRuns, projects, snapshots } from "./sqlite-schema.js";
 
 export interface AnalyzerBatch {
   analysisRunId: string;
@@ -9,19 +11,27 @@ export interface AnalyzerBatch {
 
 export type BatchResult = { accepted: true } | { accepted: false; reason: "STALE_RUN" | "RUN_CANCELLED" | "DUPLICATE_SEQUENCE" };
 
+const table = {
+  project: getTableName(projects),
+  snapshot: getTableName(snapshots),
+  analysisRun: getTableName(analysisRuns),
+  analysisBatch: getTableName(analysisBatches),
+  analysisRecord: getTableName(analysisRecords),
+};
+
 const migrations: SqliteMigration[] = [{
   version: 1,
   sql: `
-    CREATE TABLE project (id TEXT PRIMARY KEY, active_snapshot_id TEXT, current_run_id TEXT, current_staging_snapshot_id TEXT);
-    CREATE TABLE snapshot (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE);
-    CREATE TABLE analysis_run (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES project(id), staging_snapshot_id TEXT NOT NULL, status TEXT NOT NULL);
-    CREATE TABLE analysis_batch (analysis_run_id TEXT NOT NULL REFERENCES analysis_run(id), sequence_number INTEGER NOT NULL, PRIMARY KEY (analysis_run_id, sequence_number));
-    CREATE TABLE analysis_record (snapshot_id TEXT NOT NULL REFERENCES snapshot(id) ON DELETE CASCADE, value TEXT NOT NULL);
+    CREATE TABLE ${table.project} (id TEXT PRIMARY KEY, active_snapshot_id TEXT, current_run_id TEXT, current_staging_snapshot_id TEXT);
+    CREATE TABLE ${table.snapshot} (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ${table.project}(id) ON DELETE CASCADE);
+    CREATE TABLE ${table.analysisRun} (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ${table.project}(id), staging_snapshot_id TEXT NOT NULL, status TEXT NOT NULL);
+    CREATE TABLE ${table.analysisBatch} (analysis_run_id TEXT NOT NULL REFERENCES ${table.analysisRun}(id), sequence_number INTEGER NOT NULL, PRIMARY KEY (analysis_run_id, sequence_number));
+    CREATE TABLE ${table.analysisRecord} (snapshot_id TEXT NOT NULL REFERENCES ${table.snapshot}(id) ON DELETE CASCADE, value TEXT NOT NULL);
   `,
 }];
 
 export class SqliteSnapshotService {
-  constructor(private readonly driver: NodeSqliteDriver) {}
+  constructor(private readonly driver: SqliteDriver) {}
 
   migrate(): void {
     this.driver.applyMigrations(migrations);
