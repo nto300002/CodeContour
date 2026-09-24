@@ -6,10 +6,13 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "measure:poc-0": "CODECONTOUR_MEASUREMENT_OUTPUT=docs/poc-0-issue-13-measurements.json vitest run test/analysis-measurement.test.ts",
-    "measure:repository": "CODECONTOUR_REQUIRE_REAL_MEASUREMENT=1 vitest run test/real-repository-measurement.test.ts"
+    "measure:repository": "CODECONTOUR_REQUIRE_REAL_MEASUREMENT=1 vitest run test/real-repository-measurement.test.ts",
+    "measure:executor": "tsc --noEmit false --outDir /private/tmp/codecontour-spike-dist && node scripts/prepare-spike-dist.mjs && CODECONTOUR_SPIKE_DIST=/private/tmp/codecontour-spike-dist node scripts/measure-analyzer-executors.mjs",
+    "verify:executor-measurement": "node scripts/verify-executor-measurement.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "electron": "^44.4.3",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   },

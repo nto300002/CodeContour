@@ -1,0 +1,41 @@
+{
+  "generatedAt": "2026-09-24T02:33:22.326Z",
+  "status": "FAILED",
+  "environment": {
+    "platform": "darwin",
+    "release": "27.0.0",
+    "arch": "arm64",
+    "node": "v26.5.0",
+    "electronBinary": "/Users/naotoyasuda/Documents/ChatGPT/IT学習記録,AI読解/CodeContour/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+    "electronPreflight": {
+      "ok": false,
+      "candidate": "ELECTRON_RUNTIME_PREFLIGHT",
+      "command": "/Users/naotoyasuda/Documents/ChatGPT/IT学習記録,AI読解/CodeContour/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "cwd": "/Users/naotoyasuda/Documents/ChatGPT/IT学習記録,AI読解/CodeContour",
+      "exitCode": null,
+      "signal": "SIGABRT",
+      "stdout": "",
+      "stderr": "",
+      "elapsedMs": 312.67
+    }
+  },
+  "candidates": {},
+  "failure": {
+    "code": "UTILITY_PROCESS_RUNTIME_UNAVAILABLE",
+    "electronPreflight": {
+      "ok": false,
+      "candidate": "ELECTRON_RUNTIME_PREFLIGHT",
+      "command": "/Users/naotoyasuda/Documents/ChatGPT/IT学習記録,AI読解/CodeContour/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "cwd": "/Users/naotoyasuda/Documents/ChatGPT/IT学習記録,AI読解/CodeContour",
+      "exitCode": null,
+      "signal": "SIGABRT",
+      "stdout": "",
+      "stderr": "",
+      "elapsedMs": 312.67
+    },
+    "runner": {
+      "message": "Electron runtime preflight failed",
+      "stack": "Error: Electron runtime preflight failed\n    at file:///Users/naotoyasuda/Documents/ChatGPT/IT%E5%AD%A6%E7%BF%92%E8%A8%98%E9%8C%B2,AI%E8%AA%AD%E8%A7%A3/CodeContour/scripts/measure-analyzer-executors.mjs:27:9"
+    }
+  }
+}
