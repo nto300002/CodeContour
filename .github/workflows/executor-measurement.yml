@@ -8,6 +8,8 @@ on:
       - "test/fixtures/**"
       - "package.json"
       - "package-lock.json"
+      - "docs/ADR-001-analyzer-executor.md"
+      - "docs/adr-001-analyzer-executor-measurements.json"
       - ".github/workflows/executor-measurement.yml"
   workflow_dispatch:
 
