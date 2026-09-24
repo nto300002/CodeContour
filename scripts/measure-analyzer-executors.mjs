@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import electronBinary from "electron";
 import { mkdir, writeFile } from "node:fs/promises";
 import { arch, platform, release } from "node:os";
 import { dirname, resolve } from "node:path";
@@ -6,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const output = process.env.CODECONTOUR_EXECUTOR_MEASUREMENT_OUTPUT ?? "docs/adr-001-analyzer-executor-measurements.json";
-const electron = resolve(root, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron");
+// The package resolves the platform/architecture-specific executable (Intel and Apple Silicon differ).
+const electron = electronBinary;
 const worker = resolve(root, "test/fixtures/executor-spike-worker.cjs");
 const utility = resolve(root, "test/fixtures/executor-spike-utility-main.cjs");
 const lifecycle = resolve(root, "test/fixtures/executor-spike-utility-lifecycle-main.cjs");
