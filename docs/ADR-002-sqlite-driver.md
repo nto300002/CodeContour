@@ -2,7 +2,7 @@
 
 ## Status
 
-PROPOSED — packaged-app Gateは完了した。署名済み配布物を必須Gateとするかの決定と、その証跡を取得後に`ACCEPTED`へ更新する。
+ACCEPTED — Driver選定のSpike Gateは、macOS arm64の未署名packaged smokeで完了した。署名・notarizationはMVP User Test配布および一般公開のRelease Gateとする。
 
 ## Context
 
@@ -33,14 +33,16 @@ MVPのCanonical Data、Analysis Snapshot、Batch GateはSQLiteへ保存する。
 
 ## Provisional decision
 
-`better-sqlite3`を第一候補とする。ただし、選定を確定するのはCI上で上記の測定・packaged smokeがともに`COMPLETE`となってからである。`node:sqlite`はnative addon再buildが不要な代替候補として維持する。
+`better-sqlite3`を採用する。CI上で上記の測定・packaged smokeがともに`COMPLETE`であり、ASAR-unpacked native moduleを含むmacOS arm64配布物でSQLite read/writeを確認した。`node:sqlite`はnative addon再buildが不要な代替候補として維持する。
 
 ## Consequences
 
 - `better-sqlite3`採用時はElectron ABI向けrebuildとASAR unpackをCI Gateにする。
 - Driver交換は`SqliteDriver` interfaceを通して行い、Domain Serviceは候補へ依存しない。
 - SQLiteへのWriteはMain側のSingle Writerだけが所有する。
+- 開発・自分用BuildとPoC技術者向け一時配布は未署名を許容する。ただしGatekeeper警告を許容する利用者に限定する。
+- MVP User Test配布とGitHub Releasesでの一般公開は、Developer ID Application署名とnotarizationを必須にする。
 
 ## Revisit condition
 
-arm64配布物でnative moduleのロードに失敗する、または後続のSQLite / Active Snapshot統合でDriver差異が契約を破る場合、`node:sqlite`を同一Gateで再評価する。
+arm64配布物でnative moduleのロードに失敗する、後続のSQLite / Active Snapshot統合でDriver差異が契約を破る、または署名済み配布物でnative moduleのロードに失敗する場合、`node:sqlite`を同一Gateで再評価する。

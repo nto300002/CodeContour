@@ -1,7 +1,7 @@
 # SQLite Driver Spike 完了計画
 
 対象: SPIKE-002 / ADR-002 SQLite Driver Selection
-現在の判定: `REWORK`
+現在の判定: `GO`（SQLite Driver選定）。署名・notarizationはRelease Gate。
 
 ## 1. 結論
 
@@ -12,7 +12,7 @@ SQLite Driver選定を`GO`にするための残件は、次の四区分に分か
 3. 人間の権限または秘密情報が必要な作業
 4. 人間が採用方針を決定する作業
 
-外部前提が未充足のままでも、コード側の安全境界は先に実装・テストできる。ただし、署名済み配布物での起動を成功として記録したり、ADR-002を`ACCEPTED`にしたりしてはならない。
+外部前提が未充足のままでも、コード側の安全境界は先に実装・テストできる。署名・notarizationは、MVP User TestまたはGitHub Releasesでの一般公開前に必須となるRelease Gateであり、Driver選定Spikeの`GO / ACCEPTED`条件からは分離する。
 
 ## 2. 担当とコマンド実行可否の定義
 
@@ -64,7 +64,7 @@ AIはB-01からB-05のコードとworkflowを実装できる。実際の成功�
 | --- | --- | --- | --- | --- |
 | D-01 | 対象Architecture | arm64 only / arm64 + x64 | MVP TesterにIntel Mac利用者がいるか | Forge matrixとGateを更新 |
 | D-02 | Driver採用 | better-sqlite3 / node:sqlite | packaged Report、保守性、native module運用コスト | ADR-002を決定内容に更新 |
-| D-03 | 署名をADR-002の必須Gateにするか | Spike段階で必須 / Release前Gate | 配布対象・利用者・リリース時期 | 完了条件とCI workflowを更新 |
+| D-03 | 署名をADR-002の必須Gateにするか | **Release前Gateを採用** | コストを抑え、外部User Test・一般公開時だけApple Program費用を負担する | ADR / Reportを更新済み |
 | D-04 | heartbeat閾値 | 100ms維持 / 要件に応じて見直し | UI応答性のUX要件 | 根拠をADRへ記録しVerifierを更新 |
 
 ## 3. コード上で解決できること
@@ -117,15 +117,16 @@ AIはB-01からB-05のコードとworkflowを実装できる。実際の成功�
 
 ## 5. ADR-002を`ACCEPTED`にする基準
 
-以下をすべて満たすまで、ADR-002のStatusは`PROPOSED`とする。
+以下を満たしたため、ADR-002のDriver選定Statusは`ACCEPTED`とする。
 
 - Main側Single Writer統合テストがGreen
 - macOS 14 / arm64 / Node 24のCIで測定とpackaged smokeがGreen
 - Reportに両Driverの`COMPLETE`、非ゼロのpackage size・build duration、5 samplesのheartbeat p95が保存される
 - `better-sqlite3`のnative moduleがASAR unpack後の配布物から実ロードできる
 - `node:sqlite`も同じ配布物からSQLite read/writeできる
-- 署名済み配布物を必須条件とする場合は、codesignとnotarizationの成功証跡が保存される
 - ADRの選定理由は、成功したReportの値と実測範囲だけを根拠に記載する
+
+署名済み配布物の証跡はMVP User Testおよび一般公開のRelease Gateで必須とする。
 
 ## 6. 失敗時の分岐
 
@@ -135,7 +136,7 @@ AIはB-01からB-05のコードとworkflowを実装できる。実際の成功�
 | `node:sqlite`がElectron runtimeで利用不能 | 対象Electron versionとの互換性を記録し、比較候補から除外する根拠をADRへ残す。 |
 | heartbeat p95 > 100ms | Batch size、transaction粒度、DB Service配置を見直す。閾値だけを根拠なく緩和しない。 |
 | Single Writerを迂回できる | utilityProcess APIからDB接続情報を除去し、Main Controller以外の保存経路を閉じる。 |
-| 署名 / notarization失敗 | 証明書、Bundle ID、Team ID、entitlements、CI Secretの設定を確認する。SQLite Driver選定そのものの成功とは混同しない。 |
+| 署名 / notarization失敗 | 証明書、Bundle ID、Team ID、entitlements、CI Secretの設定を確認する。Releaseを停止し、SQLite Driver選定そのものの成功とは混同しない。 |
 
 ## 7. AIへ実装を依頼するための最小プロンプト
 

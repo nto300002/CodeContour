@@ -2,7 +2,7 @@
 
 ## SQLite Driver (SPIKE-002)
 
-Status: `CONDITIONAL GO` — source-level契約とmacOS arm64 packaged-app Gateは完了した。署名 / notarizationをADR-002の必須Gateとする最終判断が残る。
+Status: `GO` — source-level契約とmacOS arm64 packaged-app Gateは完了した。署名 / notarizationはMVP User Testおよび一般公開のRelease Gateとして管理する。
 
 | Gate | Evidence | Current state |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Status: `CONDITIONAL GO` — source-level契約とmacOS arm64 packaged-app Gate�
 | Candidate timing / DB size | `npm run measure:sqlite-driver` | PASS |
 | Packaged macOS arm64 execution | [GitHub Actions Run 35961097858](https://github.com/nto300002/CodeContour/actions/runs/35961097858) | PASS |
 | Main Event Loop heartbeat | 5 samples / p95 <= 100ms: better-sqlite3 26.49ms, node:sqlite 30.16ms | PASS |
-| Signed distribution native-module load | Apple signing identity and notarization workflow | PENDING |
+| Signed distribution native-module load | MVP User Test / public release workflow | RELEASE GATE |
 
 `docs/adr-002-sqlite-driver-measurements.json` contains only the comparable development measurement. The packaged smoke report is authoritative for package build duration, package size, Electron architecture, native module loading, and heartbeat delay.
 
@@ -24,4 +24,4 @@ The local Codex environment uses Node 26, where Forge can terminate without prod
 
 ## Acceptance transition
 
-Set this section to `GO` and ADR-002 to `ACCEPTED` after the human owner decides whether signing / notarization is a Spike Gate or a release-distribution Gate. The packaged CI requirements are already satisfied. If signing is selected as a Spike Gate, preserve this section as `CONDITIONAL GO` until Apple credentials, codesign, notarization, and staple evidence are available.
+ADR-002のDriver選定は`GO / ACCEPTED`である。署名・notarizationは、MVP User TestまたはGitHub Releasesで一般公開する前に実施・検証するRelease Gateである。未署名配布は開発・自分用Buildと、Gatekeeper警告を許容するPoC技術者向け一時配布に限定する。

@@ -110,7 +110,7 @@ node:sqlite
 - Electron ForgeのPackaged Appで起動する
 - 決定済みのmacOS対象Architectureで動作する
 
-開発モードでの動作だけではGate通過としない。`better-sqlite3`ではElectron向けRebuild、ASAR Unpack、署名済み配布物でのNative Module Loadを確認する。MVP Testerが自分自身と少人数だけなら`arm64 only`を推奨し、Intel Mac利用者を含む場合だけx64もGateへ追加する。
+開発モードでの動作だけではGate通過としない。`better-sqlite3`ではElectron向けRebuild、ASAR Unpack、未署名のmacOS arm64配布物でのNative Module Loadを確認する。Developer ID署名・notarization済み配布物での確認は、MVP User TestおよびGitHub Releasesでの一般公開前のRelease Gateとする。MVP Testerが自分自身と少人数だけなら`arm64 only`を推奨し、Intel Mac利用者を含む場合だけx64もGateへ追加する。
 
 ### 計測
 
