@@ -14,6 +14,7 @@ let ipcMaxRoundTripMs = 0;
 const ipcRoundTripsMs = [];
 let nextPingId = 0;
 const pendingPings = new Map();
+let finishLifecycle = () => {};
 const lifecycle = { crashExitCode: undefined, heartbeatContinued: false, restartedIr: undefined, cancelled: false, cancelledDuringAnalysis: false };
 let batchController;
 let savedBatches;
@@ -39,7 +40,12 @@ function fork(task, afterResult) {
     }
     if (message.type === "RESULT") { lifecycle.restartedIr = message.ir; afterResult?.(); }
     if (message.type === "CANCELLED") lifecycle.cancelled = true;
-    if (message.type === "LATE_BATCH") { const result = batchController.receiveFromExecutor({ type: "ANALYSIS_BATCH", batch: message.batch }); lifecycle.cancelledBatchRejected = !result.accepted && result.reason === "RUN_CANCELLED"; lifecycle.cancelledBatchSaveCount = savedBatches.length; }
+    if (message.type === "LATE_BATCH") {
+      const result = batchController.receiveFromExecutor({ type: "ANALYSIS_BATCH", batch: message.batch });
+      lifecycle.cancelledBatchRejected = !result.accepted && result.reason === "RUN_CANCELLED";
+      lifecycle.cancelledBatchSaveCount = savedBatches.length;
+      setTimeout(finishLifecycle, 50);
+    }
   });
   child.on("exit", (code) => {
     if (task.crash) {
@@ -78,7 +84,10 @@ app.whenReady().then(async () => {
   // Exclude Electron bootstrap and the first utilityProcess spawn from the UI-response window.
   setTimeout(() => { heartbeatMaxDelayMs = 0; lastHeartbeatAt = performance.now(); heartbeatWindowStarted = true; }, 150);
   fork({ files: input.files, crash: true });
-  setTimeout(() => {
+  let finished = false;
+  finishLifecycle = () => {
+    if (finished) return;
+    finished = true;
     clearInterval(timer);
     clearInterval(ipcTimer);
     const sortedHeartbeatDelays = [...heartbeatDelaysMs].sort((left, right) => left - right);
@@ -87,7 +96,9 @@ app.whenReady().then(async () => {
     const ipcP95RoundTripMs = sortedIpcRoundTrips[Math.max(0, Math.ceil(sortedIpcRoundTrips.length * 0.95) - 1)] ?? null;
     process.stdout.write(`${JSON.stringify({ type: "LIFECYCLE", heartbeats, heartbeatMaxDelayMs, heartbeatWindowStarted, heartbeatObservationCount, heartbeatP95DelayMs, ipcResponseCount, ipcMaxRoundTripMs, ipcP95RoundTripMs, ...lifecycle })}\n`);
     app.quit();
-  }, 700);
+  };
+  // CI machines can parse the first IR more slowly; never truncate the cancel scenario.
+  setTimeout(finishLifecycle, 5000);
 }).catch((error) => {
   process.stderr.write(`${error.stack ?? error.message}\n`);
   process.stdout.write(`${JSON.stringify({ type: "LIFECYCLE_FAILURE", message: error.message })}\n`);
