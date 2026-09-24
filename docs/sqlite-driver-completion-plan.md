@@ -14,6 +14,8 @@ SQLite Driver選定を`GO`にするための残件は、次の四区分に分か
 
 外部前提が未充足のままでも、コード側の安全境界は先に実装・テストできる。署名・notarizationは、MVP User TestまたはGitHub Releasesでの一般公開前に必須となるRelease Gateであり、Driver選定Spikeの`GO / ACCEPTED`条件からは分離する。
 
+未署名の無料配布は、Gatekeeper警告を理解する技術者向けPoCに限定する。段階別の配布条件、コスト、および実装順序は[配布方針](distribution-policy.md)を正とする。
+
 ## 2. 担当とコマンド実行可否の定義
 
 | 区分 | AIが実行できるか | 人間が行うこと | 例 |
@@ -157,3 +159,4 @@ npm test、npm run typecheck、git diff --checkを実行してください。
 - [Architecture Spike Plan](architecture-spike-plan.md)
 - [Architecture Spike Report](architecture-spike-report.md)
 - [ADR-002](ADR-002-sqlite-driver.md)
+- [配布方針](distribution-policy.md)
