@@ -6,6 +6,8 @@ let heartbeats = 0;
 let heartbeatMaxDelayMs = 0;
 let lastHeartbeatAt = performance.now();
 let heartbeatWindowStarted = false;
+let heartbeatObservationCount = 0;
+const heartbeatDelaysMs = [];
 let child;
 let ipcResponseCount = 0;
 let ipcMaxRoundTripMs = 0;
@@ -58,7 +60,12 @@ app.whenReady().then(async () => {
   batchController = new AnalysisBatchController(gate, { saveStaging: (batch) => savedBatches.push(batch) });
   const timer = setInterval(() => {
     const now = performance.now();
-    if (heartbeatWindowStarted) heartbeatMaxDelayMs = Math.max(heartbeatMaxDelayMs, now - lastHeartbeatAt - 5);
+    if (heartbeatWindowStarted) {
+      const delayMs = now - lastHeartbeatAt - 5;
+      heartbeatDelaysMs.push(delayMs);
+      heartbeatMaxDelayMs = Math.max(heartbeatMaxDelayMs, delayMs);
+      heartbeatObservationCount += 1;
+    }
     lastHeartbeatAt = now;
     heartbeats += 1;
   }, 5);
@@ -74,9 +81,11 @@ app.whenReady().then(async () => {
   setTimeout(() => {
     clearInterval(timer);
     clearInterval(ipcTimer);
+    const sortedHeartbeatDelays = [...heartbeatDelaysMs].sort((left, right) => left - right);
+    const heartbeatP95DelayMs = sortedHeartbeatDelays[Math.max(0, Math.ceil(sortedHeartbeatDelays.length * 0.95) - 1)] ?? null;
     const sortedIpcRoundTrips = [...ipcRoundTripsMs].sort((left, right) => left - right);
     const ipcP95RoundTripMs = sortedIpcRoundTrips[Math.max(0, Math.ceil(sortedIpcRoundTrips.length * 0.95) - 1)] ?? null;
-    process.stdout.write(`${JSON.stringify({ type: "LIFECYCLE", heartbeats, heartbeatMaxDelayMs, heartbeatWindowStarted, ipcResponseCount, ipcMaxRoundTripMs, ipcP95RoundTripMs, ...lifecycle })}\n`);
+    process.stdout.write(`${JSON.stringify({ type: "LIFECYCLE", heartbeats, heartbeatMaxDelayMs, heartbeatWindowStarted, heartbeatObservationCount, heartbeatP95DelayMs, ipcResponseCount, ipcMaxRoundTripMs, ipcP95RoundTripMs, ...lifecycle })}\n`);
     app.quit();
   }, 700);
 }).catch((error) => {

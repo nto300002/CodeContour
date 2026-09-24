@@ -36,7 +36,7 @@ Analyzer Executorの選定は保留する。
 
 `AnalysisBatchController`と`AnalysisBatchGate`により、Cancel済みRunのBatchを`RUN_CANCELLED`で拒否し、Executor由来のActive Snapshot書込み要求を拒否する設計・回帰テストはある。しかしutilityProcessを含むLifecycleを通常実行環境で再現できていないため、Crash分離・再fork・途中Cancel・Main応答性を確認済みとは扱わない。
 
-`ACCEPTED / GO`の前提は、macOS上でElectron 44.4.3のapp binaryを起動できる実行環境で`npm run measure:executor`を実行し、Small／Medium、Crash後の同一Mainからの再fork、解析途中Cancel、`RUN_CANCELLED`、保存0件、起動済みMainのIPC往復20回以上・p95が100ms未満を含む`status: "COMPLETE"` Reportを保存することである。最大値もReportへ保存するが、utilityProcessが解析中にPONGを処理できない単発時間をMain UI停止と誤認しないため、品質Gateにはp95を用いる。前提外のOS、Electron version、署名／sandbox制約、またはpreflight失敗ではRunnerはfail-closedする。
+`ACCEPTED / GO`の前提は、macOS上でElectron 44.4.3のapp binaryを起動できる実行環境で`npm run measure:executor`を実行し、Small／Medium、Crash後の同一Mainからの再fork、解析途中Cancel、`RUN_CANCELLED`、保存0件、起動済みMainのheartbeat 50回以上・遅延p95が100ms未満を含む`status: "COMPLETE"` Reportを保存することである。heartbeat最大値とutilityProcess IPC往復時間も診断値としてReportへ保存するが、品質GateはMain Event Loopを直接観測するheartbeat p95に適用する。前提外のOS、Electron version、署名／sandbox制約、またはpreflight失敗ではRunnerはfail-closedする。
 
 ## GO execution plan
 
