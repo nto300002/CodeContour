@@ -10,11 +10,13 @@ on:
       - "vite.config.ts"
       - "test/app-shell*.test.tsx"
       - "test/routing*.test.ts*"
+      - "test/repository-setup*.test.ts*"
       - "test/renderer-boundary.test.ts"
       - "test/electron-shell-boundary.test.ts"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
+      - "tsconfig.main.json"
       - ".github/workflows/ui-app-shell.yml"
   workflow_dispatch:
 
@@ -35,4 +37,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
+      - run: npm run build:main
       - run: npm run build:renderer
