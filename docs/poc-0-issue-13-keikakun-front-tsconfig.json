@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "contexts/**/*.ts", "contexts/**/*.tsx", "hooks/**/*.ts", "hooks/**/*.tsx", "lib/**/*.ts", "lib/**/*.tsx", "types/**/*.ts", "types/**/*.tsx"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx", "e2e", "app/e2e", "tests", "components/notice/**", "app/notice/**"]
+}

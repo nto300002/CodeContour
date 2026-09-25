@@ -1,0 +1,37 @@
+name: UI app shell
+
+on:
+  pull_request:
+    paths:
+      - "src/renderer/**"
+      - "electron-main.cjs"
+      - "preload.cjs"
+      - "index.html"
+      - "vite.config.ts"
+      - "test/app-shell*.test.tsx"
+      - "test/renderer-boundary.test.ts"
+      - "test/electron-shell-boundary.test.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/ui-app-shell.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app-shell:
+    name: React app shell gate
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build:renderer
