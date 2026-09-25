@@ -25,6 +25,7 @@ export function CodeContourApp() {
       // A hashchange to the reconnect screen must not discard the path saved
       // by the disconnect transition; that path is restored after reconnecting.
       if (resolved.returnPath) setReturnPath(resolved.returnPath);
+      else if (resolved.route.screen !== "repository-reconnect") setReturnPath(undefined);
       if (window.location.hash !== routeHash(resolved.route)) window.location.hash = routeHash(resolved.route);
     };
     handleHashChange();

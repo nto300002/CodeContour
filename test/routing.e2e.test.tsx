@@ -32,4 +32,20 @@ describe("routing E2E", () => {
     expect(screen.getByRole("heading", { name: "Project Hub" })).not.toBeNull();
     expect(window.location.hash).toBe("#/projects");
   });
+
+  it("discards a recovery returnPath after leaving the recovery screen by hash navigation", () => {
+    render(<CodeContourApp />);
+    fireEvent.click(screen.getByRole("button", { name: "Select sample project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Understanding Workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate repository disconnect" }));
+
+    window.location.hash = "#/projects";
+    fireEvent(window, new Event("hashchange"));
+    expect(screen.getByRole("heading", { name: "Project Hub" })).not.toBeNull();
+
+    window.location.hash = "#/repository/reconnect";
+    fireEvent(window, new Event("hashchange"));
+    fireEvent.click(screen.getByRole("button", { name: "Reconnect repository" }));
+    expect(screen.getByRole("heading", { name: "Project Hub" })).not.toBeNull();
+  });
 });
