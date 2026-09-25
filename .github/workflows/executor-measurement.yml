@@ -1,0 +1,39 @@
+name: Executor measurement
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "test/fixtures/**"
+      - "package.json"
+      - "package-lock.json"
+      - "docs/ADR-001-analyzer-executor.md"
+      - "docs/adr-001-analyzer-executor-measurements.json"
+      - ".github/workflows/executor-measurement.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: macOS utilityProcess lifecycle gate
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run measure:executor
+      - run: npm run verify:executor-measurement
+      - name: Upload executor measurement report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: executor-measurement-${{ github.sha }}
+          path: docs/adr-001-analyzer-executor-measurements.json
+          if-no-files-found: error

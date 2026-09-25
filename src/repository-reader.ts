@@ -1,0 +1,242 @@
+import { realpath, readFile } from "node:fs/promises";
+import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import ignore from "ignore";
+import ts from "typescript";
+
+export type RepositoryReaderErrorCode =
+  | "PATH_OUTSIDE_ROOT"
+  | "TSCONFIG_NOT_FOUND"
+  | "TSCONFIG_PARSE_ERROR"
+  | "REPOSITORY_READ_ERROR";
+
+export type SkippedFileReason =
+  | "PATH_OUTSIDE_ROOT"
+  | "GITIGNORE"
+  | "RESERVED_DIRECTORY"
+  | "SECURITY_IGNORE"
+  | "FILE_UNREADABLE";
+
+export type RepositoryReaderResult =
+  | {
+      ok: true;
+      files: string[];
+      declarationFiles: string[];
+      compilerOptions: ts.CompilerOptions;
+      configFilePath: string;
+      skippedFiles: Array<{ path: string; reason: SkippedFileReason }>;
+    }
+  | { ok: false; error: { code: RepositoryReaderErrorCode; message: string } };
+
+export interface LoadTypeScriptProjectInput {
+  repositoryRoot: string;
+  tsconfigPath: string;
+}
+
+const applicationFilePattern = /\.tsx?$/i;
+const declarationFilePattern = /\.d\.ts$/i;
+const permanentlyIgnoredDirectories = new Set([".git", "node_modules"]);
+
+function isWithinRoot(root: string, candidate: string): boolean {
+  const pathFromRoot = relative(root, candidate);
+  return pathFromRoot === "" || (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== ".." && !isAbsolute(pathFromRoot));
+}
+
+function relativePath(root: string, filePath: string): string {
+  return relative(root, filePath).split(sep).join("/");
+}
+
+function isPermanentlyIgnored(path: string): boolean {
+  return path.split("/").some((segment) => permanentlyIgnoredDirectories.has(segment));
+}
+
+function isSecurityIgnored(path: string): boolean {
+  return /(^|\/)(?:\.env(?:\.|$)|credentials?|secrets?)(?:\/|$)|\.(?:pem|key)(?:\.|$)/i.test(path);
+}
+
+type GitignoreReadResult =
+  | { ok: true; contents?: string }
+  | { ok: false; error: RepositoryReaderResult };
+
+async function readGitignore(root: string, directory: string): Promise<GitignoreReadResult> {
+  const requestedPath = resolve(directory, ".gitignore");
+  let canonicalPath: string;
+  try {
+    canonicalPath = await realpath(requestedPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { ok: true };
+    return { ok: false, error: configError("REPOSITORY_READ_ERROR", ".gitignore cannot be resolved.") };
+  }
+  if (!isWithinRoot(root, canonicalPath)) {
+    return { ok: false, error: configError("PATH_OUTSIDE_ROOT", ".gitignore must be inside the repository root.") };
+  }
+  try {
+    return { ok: true, contents: await readFile(canonicalPath, "utf8") };
+  } catch {
+    return { ok: false, error: configError("REPOSITORY_READ_ERROR", ".gitignore cannot be read.") };
+  }
+}
+
+function scopeGitignoreRules(contents: string, directoryFromRoot: string): string[] {
+  return contents.split(/\r?\n/).map((line) => {
+    if (!directoryFromRoot || !line || line.startsWith("#")) return line;
+
+    const negation = line.startsWith("!") ? "!" : "";
+    const pattern = line.slice(negation.length);
+    const anchored = pattern.startsWith("/");
+    const unanchoredPattern = anchored ? pattern.slice(1) : pattern;
+    const withoutTrailingSlash = unanchoredPattern.endsWith("/") ? unanchoredPattern.slice(0, -1) : unanchoredPattern;
+    const containsDirectorySeparator = withoutTrailingSlash.includes("/");
+    const scopedPattern = anchored || containsDirectorySeparator
+      ? `${directoryFromRoot}/${unanchoredPattern}`
+      : `${directoryFromRoot}/**/${unanchoredPattern}`;
+    return `${negation}${scopedPattern}`;
+  });
+}
+
+async function isGitIgnored(root: string, filePath: string): Promise<{ ok: true; ignored: boolean } | { ok: false; error: RepositoryReaderResult }> {
+  const directories: string[] = [];
+  for (let directory = dirname(filePath); ; directory = dirname(directory)) {
+    directories.push(directory);
+    if (directory === root) break;
+  }
+
+  const policy = ignore();
+  for (const directory of directories.reverse()) {
+    const gitignore = await readGitignore(root, directory);
+    if (!gitignore.ok) return gitignore;
+    if (gitignore.contents !== undefined) {
+      policy.add(scopeGitignoreRules(gitignore.contents, relativePath(root, directory)));
+    }
+  }
+  return { ok: true, ignored: policy.ignores(relativePath(root, filePath)) };
+}
+
+function configError(code: RepositoryReaderErrorCode, message: string): RepositoryReaderResult {
+  return { ok: false, error: { code, message } };
+}
+
+async function validateExtendsChain(root: string, configPath: string, config: unknown, visited = new Set<string>()): Promise<RepositoryReaderResult | undefined> {
+  if (typeof config !== "object" || config === null || !("extends" in config)) return undefined;
+  const extendedConfig = (config as { extends?: unknown }).extends;
+  const extendsPaths = typeof extendedConfig === "string"
+    ? [extendedConfig]
+    : Array.isArray(extendedConfig) ? extendedConfig.filter((value): value is string => typeof value === "string") : [];
+
+  for (const extendsPath of extendsPaths) {
+    // Config packages outside the selected repository are intentionally unsupported in PoC-0.
+    // This fail-closed rule prevents TypeScript from reading an arbitrary parent directory.
+    const unresolvedPath = resolve(dirname(configPath), extname(extendsPath) ? extendsPath : `${extendsPath}.json`);
+    if (!isWithinRoot(root, unresolvedPath)) {
+      return configError("PATH_OUTSIDE_ROOT", "The tsconfig extends path must be inside the repository root.");
+    }
+
+    let resolvedPath: string;
+    try {
+      resolvedPath = await realpath(unresolvedPath);
+    } catch {
+      return configError("TSCONFIG_PARSE_ERROR", "The tsconfig extends file cannot be resolved.");
+    }
+    if (!isWithinRoot(root, resolvedPath)) {
+      return configError("PATH_OUTSIDE_ROOT", "The tsconfig extends real path must be inside the repository root.");
+    }
+    if (visited.has(resolvedPath)) continue;
+    visited.add(resolvedPath);
+
+    const baseConfig = ts.readConfigFile(resolvedPath, ts.sys.readFile);
+    if (baseConfig.error) {
+      return configError("TSCONFIG_PARSE_ERROR", ts.flattenDiagnosticMessageText(baseConfig.error.messageText, "\n"));
+    }
+    const nestedError = await validateExtendsChain(root, resolvedPath, baseConfig.config, visited);
+    if (nestedError) return nestedError;
+  }
+}
+
+export async function loadTypeScriptProject(input: LoadTypeScriptProjectInput): Promise<RepositoryReaderResult> {
+  let root: string;
+  try {
+    root = await realpath(input.repositoryRoot);
+  } catch {
+    return configError("REPOSITORY_READ_ERROR", "Repository root cannot be resolved.");
+  }
+
+  const requestedConfigPath = resolve(root, input.tsconfigPath);
+  if (!isWithinRoot(root, requestedConfigPath)) {
+    return configError("PATH_OUTSIDE_ROOT", "The tsconfig path must be inside the repository root.");
+  }
+
+  let configPath: string;
+  try {
+    configPath = await realpath(requestedConfigPath);
+  } catch {
+    return configError("TSCONFIG_NOT_FOUND", "The requested tsconfig file does not exist.");
+  }
+  if (!isWithinRoot(root, configPath)) {
+    return configError("PATH_OUTSIDE_ROOT", "The tsconfig real path must be inside the repository root.");
+  }
+
+  const config = ts.readConfigFile(configPath, ts.sys.readFile);
+  if (config.error) {
+    return configError("TSCONFIG_PARSE_ERROR", ts.flattenDiagnosticMessageText(config.error.messageText, "\n"));
+  }
+
+  const extendsError = await validateExtendsChain(root, configPath, config.config, new Set([configPath]));
+  if (extendsError) return extendsError;
+
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root, undefined, configPath);
+  if (parsed.errors.length > 0) {
+    return configError("TSCONFIG_PARSE_ERROR", ts.flattenDiagnosticMessageText(parsed.errors[0].messageText, "\n"));
+  }
+
+  const files: string[] = [];
+  const declarationFiles: string[] = [];
+  const skippedFiles: Array<{ path: string; reason: SkippedFileReason }> = [];
+  for (const configuredFile of parsed.fileNames) {
+    if (!applicationFilePattern.test(configuredFile) && !declarationFilePattern.test(configuredFile)) continue;
+
+    const requestedFile = resolve(configuredFile);
+    if (!isWithinRoot(root, requestedFile)) {
+      skippedFiles.push({ path: relativePath(root, requestedFile), reason: "PATH_OUTSIDE_ROOT" });
+      continue;
+    }
+
+    let canonicalFile: string;
+    try {
+      canonicalFile = await realpath(requestedFile);
+    } catch {
+      skippedFiles.push({ path: relativePath(root, requestedFile), reason: "FILE_UNREADABLE" });
+      continue;
+    }
+    if (!isWithinRoot(root, canonicalFile)) {
+      skippedFiles.push({ path: relativePath(root, requestedFile), reason: "PATH_OUTSIDE_ROOT" });
+      continue;
+    }
+
+    const logicalRelativeFile = relativePath(root, requestedFile);
+    const canonicalRelativeFile = relativePath(root, canonicalFile);
+    if (isPermanentlyIgnored(logicalRelativeFile) || isPermanentlyIgnored(canonicalRelativeFile)) {
+      skippedFiles.push({ path: logicalRelativeFile, reason: "RESERVED_DIRECTORY" });
+      continue;
+    }
+    if (isSecurityIgnored(logicalRelativeFile) || isSecurityIgnored(canonicalRelativeFile)) {
+      skippedFiles.push({ path: logicalRelativeFile, reason: "SECURITY_IGNORE" });
+      continue;
+    }
+    const gitignore = await isGitIgnored(root, requestedFile);
+    if (!gitignore.ok) return gitignore.error;
+    if (gitignore.ignored) {
+      skippedFiles.push({ path: logicalRelativeFile, reason: "GITIGNORE" });
+      continue;
+    }
+    if (declarationFilePattern.test(canonicalRelativeFile)) declarationFiles.push(canonicalRelativeFile);
+    else files.push(canonicalRelativeFile);
+  }
+
+  return {
+    ok: true,
+    files: [...new Set(files)].sort(),
+    declarationFiles: [...new Set(declarationFiles)].sort(),
+    compilerOptions: parsed.options,
+    configFilePath: relativePath(root, configPath),
+    skippedFiles,
+  };
+}
