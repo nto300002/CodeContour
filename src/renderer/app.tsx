@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { AppShell, type ProjectSelection, type ScreenId, type WorkspaceView } from "./app-shell.js";
 import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
-import { AnalysisStatePanel, type AnalysisStatus } from "./status-states.js";
+import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus, type StatusBadgeValue } from "./status-states.js";
 
 const sampleProject: ProjectSelection = { id: "sample-project", name: "CodeContour sample" };
 
 export interface CodeContourAppProps {
   initialAnalysisStatus?: AnalysisStatus;
+  initialSelectionBadge?: StatusBadgeValue;
 }
 
-export function CodeContourApp({ initialAnalysisStatus = "READY" }: CodeContourAppProps) {
+export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN" }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
@@ -17,6 +18,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY" }: CodeContourA
   const [returnPath, setReturnPath] = useState<AppRoute>();
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>(initialAnalysisStatus);
   const [selection, setSelection] = useState<string | null>(null);
+  const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
 
   const navigate = (target: AppRoute) => {
     const resolved = resolveRoute(target, { projectId: project?.id ?? null, repositoryConnected });
@@ -69,10 +71,15 @@ export function CodeContourApp({ initialAnalysisStatus = "READY" }: CodeContourA
         <section>
           <h1>{view === "feature-map" ? "Feature Map" : view === "process-data-flow" ? "Process / Data Flow" : "Code Viewer"}</h1>
           <button onClick={() => setSelection("Authentication feature")} type="button">Select Authentication feature</button>
-          <p>{selection ? `Selected: ${selection}` : "No selection"}</p>
+          {selection
+            ? <p>{`Selected: ${selection}`}</p>
+            : <EmptyState action="Select a feature to inspect its analysis state." description="No feature is selected in this Workspace." title="No feature selected" />}
+          <StatusBadge status={selectionBadge} />
           {analysisStatus === "PARTIAL"
             ? <AnalysisStatePanel available={["Symbol index", "Definition navigation"]} status="PARTIAL" unavailable={["Call graph"]} />
-            : <AnalysisStatePanel onRetry={() => setAnalysisStatus("ANALYZING")} status={analysisStatus} />}
+            : analysisStatus === "FAILED" || analysisStatus === "CANCELLED"
+              ? <AnalysisStatePanel onRetry={() => setAnalysisStatus("ANALYZING")} status={analysisStatus} />
+              : <AnalysisStatePanel status={analysisStatus} />}
           <button onClick={simulateDisconnect} type="button">Simulate repository disconnect</button>
         </section>
       )}

@@ -5,9 +5,9 @@ Issue #19 の Loading / Empty / Error / Retry と分析状態を、Renderer 専�
 ## Decision
 
 - `AnalysisStatePanel` は分析状態を表示するだけで、Route・Screen・Selection を所有または変更しない。Workspace が状態と Retry callback を渡す。
-- `FAILED` と `CANCELLED` の Retry は呼び出し元へ委譲する。Workspace は状態を `ANALYZING` に更新しても、現在の Screen と Selection を維持する。
+- `FAILED` と `CANCELLED` の Retry callback は型レベルで必須にし、Workspace は状態を `ANALYZING` に更新しても、現在の Screen と Selection を維持する。
 - `PARTIAL` は利用可能な範囲と利用不能な範囲を別々の見出しとリストで表示し、両方の非空リストを型レベルで必須にする。
-- `EmptyState` は空の理由と次の操作を表示し、`StatusBadge` は状態名を可視テキストと accessible name の両方で表示する。
+- Workspace は未選択時に `EmptyState` を表示し、`StatusBadge` は状態名を可視テキストと accessible name の両方で表示する。
 
 ## 受け入れ結果
 
@@ -23,7 +23,7 @@ Issue #19 の Loading / Empty / Error / Retry と分析状態を、Renderer 専�
 | Test | 結果 |
 | --- | --- |
 | 全状態 Component Test | PASS — Empty と PENDING / ANALYZING / READY / PARTIAL / FAILED / CANCELLED を確認。 |
-| Retry Integration Test | PASS — 実際の Workspace で Retry 後も Screen、route、Selection を維持する。 |
+| Retry Integration Test | PASS — 実際の Workspace で Empty / Badge を表示し、Retry 後も Screen、route、Selection を維持する。 |
 | Accessibility Test | PASS — `status` / `alert` role、状態名、Retry button の accessible name を確認。 |
 
 ## UI Mockとの差異レビュー

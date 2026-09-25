@@ -40,12 +40,12 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
 
 type SharedAnalysisStatePanelProps = {
   errorMode?: ErrorMode;
-  onRetry?: () => void;
 };
 
 export type AnalysisStatePanelProps = SharedAnalysisStatePanelProps & (
-  | { status: Exclude<AnalysisStatus, "PARTIAL"> }
+  | { status: "PENDING" | "ANALYZING" | "READY" }
   | { status: "PARTIAL"; available: readonly [string, ...string[]]; unavailable: readonly [string, ...string[]] }
+  | { status: "FAILED" | "CANCELLED"; onRetry: () => void }
 );
 
 /**
@@ -53,17 +53,16 @@ export type AnalysisStatePanelProps = SharedAnalysisStatePanelProps & (
  * lets retry change only the analysis operation while the caller keeps context.
  */
 export function AnalysisStatePanel(props: AnalysisStatePanelProps) {
-  const { status, errorMode = "inline", onRetry } = props;
+  const { status, errorMode = "inline" } = props;
   const copy = stateCopy[status];
-  const isError = status === "FAILED" || status === "CANCELLED";
 
-  if (isError) {
+  if (status === "FAILED" || status === "CANCELLED") {
     return (
       <section aria-label={copy.title} data-error-mode={errorMode} role="alert" style={panelStyle}>
         {errorMode === "blocking" && <p>Blocking error</p>}
         <h2>{copy.title}</h2>
         <p>{copy.action}</p>
-        {onRetry && <button onClick={onRetry} type="button">Retry analysis</button>}
+        <button onClick={props.onRetry} type="button">Retry analysis</button>
       </section>
     );
   }

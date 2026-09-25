@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus } from "../src/renderer/status-states.js";
+import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatePanelProps, type AnalysisStatus } from "../src/renderer/status-states.js";
 
 const stateExpectations: ReadonlyArray<{ status: Exclude<AnalysisStatus, "PARTIAL">; title: string; action: string }> = [
   { status: "PENDING", title: "Analysis is pending", action: "Wait for analysis to start." },
@@ -15,6 +15,12 @@ const stateExpectations: ReadonlyArray<{ status: Exclude<AnalysisStatus, "PARTIA
 afterEach(cleanup);
 
 describe("analysis state presentation", () => {
+  it("requires a retry callback for recoverable error states", () => {
+    // @ts-expect-error FAILED must always provide an executable retry action.
+    const errorWithoutRetry: AnalysisStatePanelProps = { status: "FAILED" };
+    expect(errorWithoutRetry.status).toBe("FAILED");
+  });
+
   it("explains an empty result and the next action", () => {
     render(<EmptyState action="Create a feature" description="No features have been created yet." title="No features" />);
 
@@ -24,7 +30,9 @@ describe("analysis state presentation", () => {
   });
 
   it.each(stateExpectations)("explains $status and its recommended action", ({ status, title, action }) => {
-    render(<AnalysisStatePanel status={status} onRetry={() => undefined} />);
+    render(status === "FAILED" || status === "CANCELLED"
+      ? <AnalysisStatePanel onRetry={() => undefined} status={status} />
+      : <AnalysisStatePanel status={status} />);
 
     expect(screen.getByText(title)).not.toBeNull();
     expect(screen.getByText(action)).not.toBeNull();
