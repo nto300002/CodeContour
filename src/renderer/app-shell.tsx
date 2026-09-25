@@ -54,6 +54,8 @@ export interface AppShellProps {
   activeScreen: ScreenId;
   activeView?: WorkspaceView;
   project: ProjectSelection | null;
+  onScreenChange?: (screen: ScreenId) => void;
+  onViewChange?: (view: WorkspaceView) => void;
   children: ReactNode;
 }
 
@@ -61,7 +63,7 @@ export interface AppShellProps {
  * Renderer-only shared layout. Application capabilities are supplied later by
  * a typed preload API; this component never imports Node or Electron APIs.
  */
-export function AppShell({ activeScreen, activeView = "feature-map", project, children }: AppShellProps) {
+export function AppShell({ activeScreen, activeView = "feature-map", project, onScreenChange, onViewChange, children }: AppShellProps) {
   const hasProject = isProjectNavigationEnabled(project);
   const projectNavigationState = hasProject ? "enabled" : "disabled";
 
@@ -76,6 +78,7 @@ export function AppShell({ activeScreen, activeView = "feature-map", project, ch
               aria-current={screen.id === activeScreen ? "page" : undefined}
               disabled={screen.requiresProject && !hasProject}
               key={screen.id}
+              onClick={() => onScreenChange?.(screen.id)}
               type="button"
             >
               {screen.label}
@@ -94,7 +97,7 @@ export function AppShell({ activeScreen, activeView = "feature-map", project, ch
           <div data-layout="workspace-three-pane" style={workspaceStyle}>
             <aside data-pane="navigation" style={paneStyle}>
               <nav aria-label="Workspace view navigation">
-                {workspaceViews.map((view) => <button aria-current={view.id === activeView ? "page" : undefined} key={view.id} type="button">{view.label}</button>)}
+                {workspaceViews.map((view) => <button aria-current={view.id === activeView ? "page" : undefined} key={view.id} onClick={() => onViewChange?.(view.id)} type="button">{view.label}</button>)}
               </nav>
             </aside>
             <main data-pane="canvas" style={canvasStyle}>{children}</main>
