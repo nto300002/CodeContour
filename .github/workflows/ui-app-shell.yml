@@ -9,6 +9,7 @@ on:
       - "index.html"
       - "vite.config.ts"
       - "test/app-shell*.test.tsx"
+      - "test/routing*.test.ts*"
       - "test/renderer-boundary.test.ts"
       - "test/electron-shell-boundary.test.ts"
       - "package.json"
