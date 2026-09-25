@@ -1,16 +1,27 @@
 import { useEffect, useState } from "react";
 import { AppShell, type ProjectSelection, type ScreenId, type WorkspaceView } from "./app-shell.js";
+import { ProjectHub, type HubProject } from "./project-hub.js";
 import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
 import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus, type StatusBadgeValue } from "./status-states.js";
 
-const sampleProject: ProjectSelection = { id: "sample-project", name: "CodeContour sample" };
+const defaultProjects: readonly HubProject[] = [{
+  id: "sample-project",
+  name: "CodeContour sample",
+  language: "TypeScript",
+  updatedAt: "2026-09-25",
+  analysisStatus: "READY",
+  connectionStatus: "CONNECTED",
+  hasActiveSnapshot: true,
+  savedSelection: { view: "feature-map" },
+}];
 
 export interface CodeContourAppProps {
   initialAnalysisStatus?: AnalysisStatus;
   initialSelectionBadge?: StatusBadgeValue;
+  initialProjects?: readonly HubProject[];
 }
 
-export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN" }: CodeContourAppProps) {
+export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
@@ -25,6 +36,24 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     setRoute(resolved.route);
     setReturnPath(resolved.returnPath);
     window.location.hash = routeHash(resolved.route);
+  };
+
+  const openProject = (hubProject: HubProject, restoreSelection: boolean) => {
+    const selectedProject: ProjectSelection = { id: hubProject.id, name: hubProject.name };
+    const target: AppRoute = { screen: hubProject.hasActiveSnapshot ? "workspace" : "initial-analysis" };
+    const repositoryIsConnected = hubProject.connectionStatus === "CONNECTED";
+    const resolved = resolveRoute(target, { projectId: selectedProject.id, repositoryConnected: repositoryIsConnected });
+    setProject(selectedProject);
+    setRepositoryConnected(repositoryIsConnected);
+    setView(restoreSelection ? hubProject.savedSelection?.view ?? "feature-map" : "feature-map");
+    setSelection(restoreSelection ? hubProject.savedSelection?.featureName ?? null : null);
+    setRoute(resolved.route);
+    setReturnPath(resolved.returnPath);
+    window.location.hash = routeHash(resolved.route);
+  };
+
+  const registerProject = () => {
+    navigate({ screen: "repository-setup" });
   };
 
   useEffect(() => {
@@ -61,11 +90,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   return (
     <AppShell activeScreen={route.screen} activeView={view} onScreenChange={(screen: ScreenId) => navigate({ screen })} onViewChange={setView} project={project}>
       {route.screen === "project-hub" && (
-        <section>
-          <h1>Project Hub</h1>
-          <p>Select or create a local project to begin.</p>
-          <button onClick={() => setProject(sampleProject)} type="button">Select sample project</button>
-        </section>
+        <ProjectHub onContinue={(hubProject) => openProject(hubProject, true)} onOpen={(hubProject) => openProject(hubProject, false)} onRegister={registerProject} projects={initialProjects} />
       )}
       {route.screen === "workspace" && (
         <section>

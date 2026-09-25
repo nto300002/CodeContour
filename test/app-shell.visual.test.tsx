@@ -10,8 +10,7 @@ describe("App Shell visual smoke", () => {
     expect(container.querySelector('[data-layout="project-hub-two-pane"]')).not.toBeNull();
     expect((screen.getByRole("button", { name: "Understanding Workspace" }) as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.click(screen.getByRole("button", { name: "Select sample project" }));
-    fireEvent.click(screen.getByRole("button", { name: "Understanding Workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
 
     const workspace = container.querySelector('[data-layout="workspace-three-pane"]');
     expect(workspace).not.toBeNull();
