@@ -1,9 +1,12 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { CodeContourApp } from "../src/renderer/app.js";
 
-afterEach(() => window.history.replaceState({}, "", "/"));
+afterEach(() => {
+  cleanup();
+  window.history.replaceState({}, "", "/");
+});
 
 describe("routing E2E", () => {
   it("keeps the Workspace Shell while switching Views and returns after reconnect", () => {
@@ -21,5 +24,12 @@ describe("routing E2E", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reconnect repository" }));
     expect(container.querySelector('[data-layout="workspace-three-pane"]')).not.toBeNull();
     expect(screen.getByRole("heading", { name: "Code Viewer" })).not.toBeNull();
+  });
+
+  it("falls back when an unselected project opens a guarded route directly", () => {
+    window.location.hash = "#/workspace";
+    render(<CodeContourApp />);
+    expect(screen.getByRole("heading", { name: "Project Hub" })).not.toBeNull();
+    expect(window.location.hash).toBe("#/projects");
   });
 });

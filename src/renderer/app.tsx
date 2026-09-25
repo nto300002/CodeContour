@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import { AppShell, type ProjectSelection, type ScreenId, type WorkspaceView } from "./app-shell.js";
-import { completeReconnect, parseRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
+import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
 
 const sampleProject: ProjectSelection = { id: "sample-project", name: "CodeContour sample" };
 
 export function CodeContourApp() {
   const [project, setProject] = useState<ProjectSelection | null>(null);
-  const [route, setRoute] = useState<AppRoute>(() => {
-    const parsed = parseRoute(window.location.hash);
-    return { screen: parsed.screen };
-  });
+  const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
   const [repositoryConnected, setRepositoryConnected] = useState(true);
   const [returnPath, setReturnPath] = useState<AppRoute>();
@@ -23,12 +20,17 @@ export function CodeContourApp() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const parsed = parseRoute(window.location.hash);
-      navigate({ screen: parsed.screen });
+      const resolved = resolveHashRoute(window.location.hash, { projectId: project?.id ?? null, repositoryConnected });
+      setRoute(resolved.route);
+      // A hashchange to the reconnect screen must not discard the path saved
+      // by the disconnect transition; that path is restored after reconnecting.
+      if (resolved.returnPath) setReturnPath(resolved.returnPath);
+      if (window.location.hash !== routeHash(resolved.route)) window.location.hash = routeHash(resolved.route);
     };
+    handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  });
+  }, [project, repositoryConnected]);
 
   const simulateDisconnect = () => {
     setRepositoryConnected(false);

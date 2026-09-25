@@ -49,6 +49,12 @@ export function resolveRoute(route: AppRoute, context: RouteContext): RouteResol
   return { route };
 }
 
+/** Resolves a URL hash through the same guards used by in-app navigation. */
+export function resolveHashRoute(hash: string, context: RouteContext): RouteResolution {
+  const parsed = parseRoute(hash);
+  return resolveRoute({ screen: parsed.screen }, context);
+}
+
 export function completeReconnect(returnPath: AppRoute | undefined): AppRoute {
   return returnPath ?? { screen: "project-hub" };
 }

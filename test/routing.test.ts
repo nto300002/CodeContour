@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appRoutes, completeReconnect, parseRoute, resolveRoute, type RouteContext } from "../src/renderer/routing.js";
+import { appRoutes, completeReconnect, parseRoute, resolveHashRoute, resolveRoute, type RouteContext } from "../src/renderer/routing.js";
 
 const selectedProject: RouteContext = { projectId: "project-1", repositoryConnected: true };
 
@@ -22,6 +22,7 @@ describe("app routing", () => {
     const context: RouteContext = { projectId: null, repositoryConnected: false };
     expect(resolveRoute({ screen: "workspace" }, context)).toEqual({ route: { screen: "project-hub" }, reason: "PROJECT_REQUIRED" });
     expect(context).toEqual({ projectId: null, repositoryConnected: false });
+    expect(resolveHashRoute("#/workspace", { projectId: null, repositoryConnected: true })).toEqual({ route: { screen: "project-hub" }, reason: "PROJECT_REQUIRED" });
   });
 
   it("redirects a disconnected repository to recovery and restores the preserved returnPath", () => {
