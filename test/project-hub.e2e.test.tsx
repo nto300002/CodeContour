@@ -56,4 +56,15 @@ describe("Project Hub E2E", () => {
     expect(window.location.hash).toBe("#/repository/setup");
     expect(screen.getByRole("heading", { name: "repository-setup" })).not.toBeNull();
   });
+
+  it("does not add a project when Repository Setup is abandoned", () => {
+    render(<CodeContourApp initialProjects={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Register new project" }));
+    expect(window.location.hash).toBe("#/repository/setup");
+
+    fireEvent.click(screen.getByRole("button", { name: "Project Hub" }));
+
+    expect(screen.getByRole("status", { name: "No projects" })).not.toBeNull();
+    expect(screen.queryByRole("article", { name: "New project" })).toBeNull();
+  });
 });

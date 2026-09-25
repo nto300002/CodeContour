@@ -23,7 +23,6 @@ export interface CodeContourAppProps {
 
 export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
-  const [projects, setProjects] = useState<readonly HubProject[]>(initialProjects);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
   const [repositoryConnected, setRepositoryConnected] = useState(true);
@@ -54,16 +53,6 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   };
 
   const registerProject = () => {
-    const registeredProject: HubProject = {
-      id: "new-project",
-      name: "New project",
-      language: "TypeScript",
-      updatedAt: "2026-09-25",
-      analysisStatus: "PENDING",
-      connectionStatus: "CONNECTED",
-      hasActiveSnapshot: false,
-    };
-    setProjects((current) => [...current, registeredProject]);
     navigate({ screen: "repository-setup" });
   };
 
@@ -101,7 +90,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   return (
     <AppShell activeScreen={route.screen} activeView={view} onScreenChange={(screen: ScreenId) => navigate({ screen })} onViewChange={setView} project={project}>
       {route.screen === "project-hub" && (
-        <ProjectHub onContinue={(hubProject) => openProject(hubProject, true)} onOpen={(hubProject) => openProject(hubProject, false)} onRegister={registerProject} projects={projects} />
+        <ProjectHub onContinue={(hubProject) => openProject(hubProject, true)} onOpen={(hubProject) => openProject(hubProject, false)} onRegister={registerProject} projects={initialProjects} />
       )}
       {route.screen === "workspace" && (
         <section>

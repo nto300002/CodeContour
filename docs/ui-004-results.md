@@ -7,7 +7,7 @@ Issue #20 の SCR-001 Project Hub を実装した結果を記録する。
 - Project Card は Project 名、言語、更新日時、Analysis 状態、接続状態を常に表示する。
 - `Open` は保存済みの View / Selection を復元せず、解析済み Project は Workspace、未解析 Project は Initial Analysis へ遷移する。
 - `Continue` は保存済みの Workspace View と Feature Selection を復元する。接続が `DISCONNECTED` の場合は、先に Repository Reconnect へ安全に遷移する。
-- Project が0件の場合も、空の理由と `Register new project` 導線を表示する。登録開始時は Repository Setup へ遷移する。
+- Project が0件の場合も、空の理由と `Register new project` 導線を表示する。登録開始時は Repository Setup へ遷移するだけで、Setup成功による実登録まで一覧を更新しない。
 
 ## 受け入れ結果
 
@@ -19,7 +19,7 @@ Issue #20 の SCR-001 Project Hub を実装した結果を記録する。
 | 続きからで保存済み Selection を復元 | PASS | Workspace View と Feature Selection を復元する E2E を追加した。 |
 | 未解析 Project は SCR-003 へ遷移 | PASS | `hasActiveSnapshot: false` は `#/analysis`（Initial Analysis）へ遷移する E2E を追加した。 |
 | DISCONNECTED は SCR-005 へ遷移 | PASS | `DISCONNECTED` Project は `#/repository/reconnect` へ遷移する E2E を追加した。 |
-| 0件時は登録導線付き Empty | PASS | `No projects` EmptyState と登録ボタンから `#/repository/setup` へ遷移する E2E を追加した。 |
+| 0件時は登録導線付き Empty | PASS | `No projects` EmptyState と登録ボタンから `#/repository/setup` へ遷移する E2E を追加し、中断してHubへ戻っても仮Projectを表示しないことを確認する。 |
 
 ## Required Tests
 
@@ -27,7 +27,7 @@ Issue #20 の SCR-001 Project Hub を実装した結果を記録する。
 | --- | --- |
 | Project Card Component Test | PASS — 表示項目と `Open` / `Continue` callback を確認。 |
 | 状態別遷移 Integration Test | PASS — READY、未解析、DISCONNECTED の遷移先を確認。 |
-| 0件から登録開始まで E2E | PASS — Empty 表示から Repository Setup への hash 遷移を確認。 |
+| 0件から登録開始まで E2E | PASS — Empty 表示から Repository Setup への hash 遷移と、中断後もEmptyのままであることを確認。 |
 
 ## UI Mockとの差異レビュー
 
