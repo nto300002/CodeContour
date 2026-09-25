@@ -11,8 +11,7 @@ afterEach(() => {
 describe("routing E2E", () => {
   it("keeps the Workspace Shell while switching Views and returns after reconnect", () => {
     const { container } = render(<CodeContourApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Select sample project" }));
-    fireEvent.click(screen.getByRole("button", { name: "Understanding Workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
 
     const workspaceShell = container.querySelector('[data-layout="workspace-three-pane"]');
     fireEvent.click(screen.getByRole("button", { name: "Code Viewer" }));
@@ -35,8 +34,7 @@ describe("routing E2E", () => {
 
   it("discards a recovery returnPath after leaving the recovery screen by hash navigation", () => {
     render(<CodeContourApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Select sample project" }));
-    fireEvent.click(screen.getByRole("button", { name: "Understanding Workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
     fireEvent.click(screen.getByRole("button", { name: "Simulate repository disconnect" }));
 
     window.location.hash = "#/projects";
@@ -51,8 +49,7 @@ describe("routing E2E", () => {
 
   it("does not revive an abandoned returnPath through browser back and forward", async () => {
     render(<CodeContourApp />);
-    fireEvent.click(screen.getByRole("button", { name: "Select sample project" }));
-    fireEvent.click(screen.getByRole("button", { name: "Understanding Workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
     fireEvent.click(screen.getByRole("button", { name: "Simulate repository disconnect" }));
     fireEvent.click(screen.getByRole("button", { name: "Project Hub" }));
     expect(window.location.hash).toBe("#/projects");

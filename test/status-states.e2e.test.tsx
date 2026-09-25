@@ -11,8 +11,7 @@ afterEach(() => {
 describe("recoverable analysis state in the Workspace", () => {
   it("retries without changing the current Workspace route or feature selection", () => {
     const { container } = render(<CodeContourApp initialAnalysisStatus="FAILED" initialSelectionBadge="STALE" />);
-    fireEvent.click(screen.getByRole("button", { name: "Select sample project" }));
-    fireEvent.click(screen.getByRole("button", { name: "Understanding Workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
 
     expect(screen.getByRole("status", { name: "No feature selected" })).not.toBeNull();
     expect(screen.getByText("Next: Select a feature to inspect its analysis state.")).not.toBeNull();
