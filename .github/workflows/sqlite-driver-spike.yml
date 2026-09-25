@@ -5,6 +5,7 @@ on:
     paths:
       - "src/sqlite-*.ts"
       - "test/sqlite-*.test.ts"
+      - "test/verify-sqlite-spike.test.ts"
       - "test/fixtures/sqlite-packaged-main.cjs"
       - "scripts/smoke-packaged-sqlite.mjs"
       - "scripts/run-packaged-sqlite-smoke.mjs"

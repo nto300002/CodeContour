@@ -31,7 +31,9 @@ MVPのCanonical Data、Analysis Snapshot、Batch GateはSQLiteへ保存する。
 
 両候補は5/5 sampleで`COMPLETE`となり、100msのheartbeat Gateを満たした。`better-sqlite3`はASAR unpack済み配布物からnative moduleをロードしてSQLite read/writeに成功した。
 
-## Provisional decision
+配布物Smokeと比較計測の正規証跡は、CIがUploadするArtifactとする。ローカルで生成する`docs/adr-002-*-measurements.json`および`docs/adr-002-sqlite-packaged-smoke.json`は診断用でGit管理しない。PR #35の現HEADに対する[Run 35962416579](https://github.com/nto300002/CodeContour/actions/runs/35962416579)も、macOS arm64 packaged SQLite Gateに成功している。
+
+## Decision
 
 `better-sqlite3`を採用する。CI上で上記の測定・packaged smokeがともに`COMPLETE`であり、ASAR-unpacked native moduleを含むmacOS arm64配布物でSQLite read/writeを確認した。`node:sqlite`はnative addon再buildが不要な代替候補として維持する。
 

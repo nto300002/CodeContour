@@ -1,3 +1,6 @@
 node_modules/
 coverage/
 dist/
+out/
+docs/adr-002-sqlite-driver-measurements.json
+docs/adr-002-sqlite-packaged-smoke.json
