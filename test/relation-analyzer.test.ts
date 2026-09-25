@@ -10,9 +10,10 @@ afterEach(async () => { await Promise.all(directories.splice(0).map((directory) 
 
 describe("analyzeImportRelations", () => {
   it("resolves relative, alias, default, barrel and chained re-export imports to project definitions", async () => {
+    const domainSource = "export const source = 1; export default function defaultSource() { return source; }";
     const root = await fixture({
       "tsconfig.json": JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["src/*"] }, moduleResolution: "Node" }, include: ["src"] }),
-      "src/domain.ts": "export const source = 1; export default function defaultSource() { return source; }",
+      "src/domain.ts": domainSource,
       "src/barrel.ts": "export { source as renamed } from './domain'; export { default } from './domain';",
       "src/chain.ts": "export { renamed as chained } from './barrel';",
       "src/main.ts": "import defaultSource, { source } from './domain'; import { chained } from './chain'; import { source as aliasSource } from '@/domain'; export const use = () => defaultSource() + source + chained + aliasSource;",
@@ -27,6 +28,8 @@ describe("analyzeImportRelations", () => {
       ["source", "PROJECT", "src/domain.ts"],
     ]);
     for (const relation of result.relations) expect(relation).toMatchObject({ type: "IMPORTS", targetScope: "PROJECT", resolution: "RESOLVED", evidenceLocation: { relativePath: "src/main.ts", start: expect.any(Number), end: expect.any(Number) }, definition: { relativePath: "src/domain.ts", range: { start: expect.any(Number), end: expect.any(Number) } } });
+    const sourceRelation = result.relations.find((relation) => relation.importedName === "source")!;
+    expect(domainSource.slice(sourceRelation.definition!.range.start, sourceRelation.definition!.range.end)).toBe("source = 1");
   });
 
   it("marks external and unresolved imports without falsely resolving a project definition", async () => {
