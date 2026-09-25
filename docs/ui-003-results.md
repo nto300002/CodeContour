@@ -4,9 +4,9 @@ Issue #19 の Loading / Empty / Error / Retry と分析状態を、Renderer 専�
 
 ## Decision
 
-- `AnalysisStatePanel` は分析状態を表示するだけで、Route・Screen・Selection を所有または変更しない。
-- `FAILED` と `CANCELLED` の Retry は呼び出し元へ委譲する。呼び出し元が状態を `ANALYZING` に更新しても、現在の Screen と Selection は維持する。
-- `PARTIAL` は利用可能な範囲と利用不能な範囲を別々の見出しとリストで表示する。
+- `AnalysisStatePanel` は分析状態を表示するだけで、Route・Screen・Selection を所有または変更しない。Workspace が状態と Retry callback を渡す。
+- `FAILED` と `CANCELLED` の Retry は呼び出し元へ委譲する。Workspace は状態を `ANALYZING` に更新しても、現在の Screen と Selection を維持する。
+- `PARTIAL` は利用可能な範囲と利用不能な範囲を別々の見出しとリストで表示し、両方の非空リストを型レベルで必須にする。
 - `EmptyState` は空の理由と次の操作を表示し、`StatusBadge` は状態名を可視テキストと accessible name の両方で表示する。
 
 ## 受け入れ結果
@@ -15,7 +15,7 @@ Issue #19 の Loading / Empty / Error / Retry と分析状態を、Renderer 専�
 | --- | --- | --- |
 | 状態ごとの意味と推奨操作を区別 | PASS | 6つの Analysis State に title と recommended action を固定する。 |
 | PARTIAL の利用可能／不足範囲を表示 | PASS | `Available` / `Unavailable` の独立リストを表示する。 |
-| Recoverable Error で Screen / Selection を維持 | PASS | Retry integration test が Workspace / Feature selection を維持したまま `ANALYZING` へ遷移することを確認する。 |
+| Recoverable Error で Screen / Selection を維持 | PASS | Workspace E2E が3ペイン Shell、`#/workspace`、Feature selectionを維持したまま `ANALYZING` へ遷移することを確認する。 |
 | 色だけに依存しない状態識別 | PASS | 見出し、可視状態名、ARIA `status` / `alert`、accessible name を提供する。 |
 
 ## Required Tests
@@ -23,7 +23,7 @@ Issue #19 の Loading / Empty / Error / Retry と分析状態を、Renderer 専�
 | Test | 結果 |
 | --- | --- |
 | 全状態 Component Test | PASS — Empty と PENDING / ANALYZING / READY / PARTIAL / FAILED / CANCELLED を確認。 |
-| Retry Integration Test | PASS — Retry 後も Screen と Selection を維持する。 |
+| Retry Integration Test | PASS — 実際の Workspace で Retry 後も Screen、route、Selection を維持する。 |
 | Accessibility Test | PASS — `status` / `alert` role、状態名、Retry button の accessible name を確認。 |
 
 ## UI Mockとの差異レビュー

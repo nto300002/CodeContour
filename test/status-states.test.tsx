@@ -4,11 +4,10 @@ import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus } from "../src/renderer/status-states.js";
 
-const stateExpectations: ReadonlyArray<{ status: AnalysisStatus; title: string; action: string }> = [
+const stateExpectations: ReadonlyArray<{ status: Exclude<AnalysisStatus, "PARTIAL">; title: string; action: string }> = [
   { status: "PENDING", title: "Analysis is pending", action: "Wait for analysis to start." },
   { status: "ANALYZING", title: "Analysis in progress", action: "You can continue using available project information." },
   { status: "READY", title: "Analysis ready", action: "Open the Workspace to explore the project." },
-  { status: "PARTIAL", title: "Analysis partially complete", action: "Review the unavailable areas before relying on them." },
   { status: "FAILED", title: "Analysis failed", action: "Retry analysis after resolving the problem." },
   { status: "CANCELLED", title: "Analysis cancelled", action: "Retry analysis when you are ready." },
 ];
@@ -34,6 +33,8 @@ describe("analysis state presentation", () => {
   it("shows both available and unavailable scope for PARTIAL", () => {
     render(<AnalysisStatePanel available={["Symbol index", "Definition navigation"]} status="PARTIAL" unavailable={["Call graph"]} />);
 
+    expect(screen.getByText("Analysis partially complete")).not.toBeNull();
+    expect(screen.getByText("Review the unavailable areas before relying on them.")).not.toBeNull();
     expect(screen.getByText("Available")).not.toBeNull();
     expect(screen.getByText("Symbol index")).not.toBeNull();
     expect(screen.getByText("Unavailable")).not.toBeNull();
@@ -52,7 +53,7 @@ describe("analysis state presentation", () => {
 
   it("retries without changing the current screen or selection", () => {
     function RecoveryHarness() {
-      const [status, setStatus] = useState<AnalysisStatus>("FAILED");
+      const [status, setStatus] = useState<"FAILED" | "ANALYZING">("FAILED");
       return (
         <>
           <p>Screen: Understanding Workspace</p>

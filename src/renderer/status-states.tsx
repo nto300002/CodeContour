@@ -38,25 +38,22 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
   );
 }
 
-export interface AnalysisStatePanelProps {
-  status: AnalysisStatus;
-  available?: readonly string[];
-  unavailable?: readonly string[];
+type SharedAnalysisStatePanelProps = {
   errorMode?: ErrorMode;
   onRetry?: () => void;
-}
+};
+
+export type AnalysisStatePanelProps = SharedAnalysisStatePanelProps & (
+  | { status: Exclude<AnalysisStatus, "PARTIAL"> }
+  | { status: "PARTIAL"; available: readonly [string, ...string[]]; unavailable: readonly [string, ...string[]] }
+);
 
 /**
  * Presents analyzer state without owning navigation or selection state. This
  * lets retry change only the analysis operation while the caller keeps context.
  */
-export function AnalysisStatePanel({
-  status,
-  available = [],
-  unavailable = [],
-  errorMode = "inline",
-  onRetry,
-}: AnalysisStatePanelProps) {
+export function AnalysisStatePanel(props: AnalysisStatePanelProps) {
+  const { status, errorMode = "inline", onRetry } = props;
   const copy = stateCopy[status];
   const isError = status === "FAILED" || status === "CANCELLED";
 
@@ -78,9 +75,9 @@ export function AnalysisStatePanel({
       {status === "PARTIAL" && (
         <>
           <h3>Available</h3>
-          <ul style={listStyle}>{available.map((item) => <li key={item}>{item}</li>)}</ul>
+          <ul style={listStyle}>{props.available.map((item) => <li key={item}>{item}</li>)}</ul>
           <h3>Unavailable</h3>
-          <ul style={listStyle}>{unavailable.map((item) => <li key={item}>{item}</li>)}</ul>
+          <ul style={listStyle}>{props.unavailable.map((item) => <li key={item}>{item}</li>)}</ul>
         </>
       )}
     </section>

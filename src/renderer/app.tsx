@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
 import { AppShell, type ProjectSelection, type ScreenId, type WorkspaceView } from "./app-shell.js";
 import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
+import { AnalysisStatePanel, type AnalysisStatus } from "./status-states.js";
 
 const sampleProject: ProjectSelection = { id: "sample-project", name: "CodeContour sample" };
 
-export function CodeContourApp() {
+export interface CodeContourAppProps {
+  initialAnalysisStatus?: AnalysisStatus;
+}
+
+export function CodeContourApp({ initialAnalysisStatus = "READY" }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
   const [repositoryConnected, setRepositoryConnected] = useState(true);
   const [returnPath, setReturnPath] = useState<AppRoute>();
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>(initialAnalysisStatus);
+  const [selection, setSelection] = useState<string | null>(null);
 
   const navigate = (target: AppRoute) => {
     const resolved = resolveRoute(target, { projectId: project?.id ?? null, repositoryConnected });
@@ -58,7 +65,17 @@ export function CodeContourApp() {
           <button onClick={() => setProject(sampleProject)} type="button">Select sample project</button>
         </section>
       )}
-      {route.screen === "workspace" && <section><h1>{view === "feature-map" ? "Feature Map" : view === "process-data-flow" ? "Process / Data Flow" : "Code Viewer"}</h1><button onClick={simulateDisconnect} type="button">Simulate repository disconnect</button></section>}
+      {route.screen === "workspace" && (
+        <section>
+          <h1>{view === "feature-map" ? "Feature Map" : view === "process-data-flow" ? "Process / Data Flow" : "Code Viewer"}</h1>
+          <button onClick={() => setSelection("Authentication feature")} type="button">Select Authentication feature</button>
+          <p>{selection ? `Selected: ${selection}` : "No selection"}</p>
+          {analysisStatus === "PARTIAL"
+            ? <AnalysisStatePanel available={["Symbol index", "Definition navigation"]} status="PARTIAL" unavailable={["Call graph"]} />
+            : <AnalysisStatePanel onRetry={() => setAnalysisStatus("ANALYZING")} status={analysisStatus} />}
+          <button onClick={simulateDisconnect} type="button">Simulate repository disconnect</button>
+        </section>
+      )}
       {route.screen === "repository-reconnect" && <section><h1>Repository Reconnect</h1><button onClick={reconnect} type="button">Reconnect repository</button></section>}
       {route.screen !== "project-hub" && route.screen !== "workspace" && route.screen !== "repository-reconnect" && <section><h1>{route.screen}</h1></section>}
     </AppShell>
