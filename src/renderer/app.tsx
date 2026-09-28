@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell, type ProjectSelection, type ScreenId, type WorkspaceView } from "./app-shell.js";
 import { ProjectHub, type HubProject } from "./project-hub.js";
 import { desktopInitialAnalysisApi, InitialAnalysis, type InitialAnalysisApi } from "./initial-analysis.js";
@@ -34,6 +34,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>(initialAnalysisStatus);
   const [analysisPhase, setAnalysisPhase] = useState("Waiting to start");
   const [analysisRunId, setAnalysisRunId] = useState<string>();
+  const analysisStartRequestId = useRef(0);
   const [selection, setSelection] = useState<string | null>(null);
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
 
@@ -66,26 +67,33 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     navigate({ screen: "repository-setup" });
   };
 
+  const beginInitialAnalysis = (projectId: string) => {
+    const requestId = ++analysisStartRequestId.current;
+    setAnalysisStatus("PENDING");
+    setAnalysisPhase("Starting analysis");
+    setAnalysisRunId(undefined);
+    void initialAnalysisApi.start({ projectId }).then((run) => {
+      if (requestId !== analysisStartRequestId.current) return;
+      setAnalysisRunId(run.runId);
+      setAnalysisStatus(run.status);
+      setAnalysisPhase(run.phase);
+    }).catch(() => {
+      if (requestId !== analysisStartRequestId.current) return;
+      setAnalysisStatus("FAILED");
+      setAnalysisPhase("Unable to start analysis");
+    });
+  };
+
   const startInitialAnalysis = ({ repositoryRoot }: { repositoryRoot: string }) => {
     const name = repositoryRoot.split("/").filter(Boolean).at(-1) ?? "Local repository";
     const selectedProject = { id: `setup:${repositoryRoot}`, name };
     const resolved = resolveRoute({ screen: "initial-analysis" }, { projectId: selectedProject.id, repositoryConnected: true });
     setProject(selectedProject);
     setRepositoryConnected(true);
-    setAnalysisStatus("PENDING");
-    setAnalysisPhase("Waiting to start");
-    setAnalysisRunId(undefined);
     setRoute(resolved.route);
     setReturnPath(resolved.returnPath);
     window.location.hash = routeHash(resolved.route);
-    void initialAnalysisApi.start({ projectId: selectedProject.id }).then((run) => {
-      setAnalysisRunId(run.runId);
-      setAnalysisStatus(run.status);
-      setAnalysisPhase(run.phase);
-    }).catch(() => {
-      setAnalysisStatus("FAILED");
-      setAnalysisPhase("Unable to start analysis");
-    });
+    beginInitialAnalysis(selectedProject.id);
   };
 
   const cancelInitialAnalysis = () => {
@@ -137,7 +145,8 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
         onBackground={() => navigate({ screen: "project-hub" })}
         onCancel={cancelInitialAnalysis}
         onOpenWorkspace={() => navigate({ screen: "workspace" })}
-        onRetry={() => { setAnalysisStatus("ANALYZING"); setAnalysisPhase("Indexing source files"); }}
+        canCancel={analysisRunId !== undefined}
+        onRetry={() => { if (project) beginInitialAnalysis(project.id); }}
         run={{ status: analysisStatus, phase: analysisPhase }}
       />}
       {route.screen === "workspace" && (

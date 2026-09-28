@@ -12,6 +12,8 @@ export interface InitialAnalysisRun {
 
 export interface InitialAnalysisProps {
   run: InitialAnalysisRun;
+  /** A cancel command is valid only after Main has assigned the Run ID. */
+  canCancel: boolean;
   onCancel: () => void;
   onBackground: () => void;
   onRetry: () => void;
@@ -36,7 +38,7 @@ const availableWorkspace = (status: InitialAnalysisState) => status === "READY" 
 const running = (status: InitialAnalysisState) => status === "PENDING" || status === "ANALYZING";
 
 /** Renderer projection of an analyzer-owned run; it never accepts executor batches. */
-export function InitialAnalysis({ run, onCancel, onBackground, onRetry, onOpenWorkspace }: InitialAnalysisProps) {
+export function InitialAnalysis({ run, canCancel, onCancel, onBackground, onRetry, onOpenWorkspace }: InitialAnalysisProps) {
   const progress = run.progress ? `Progress: ${run.progress.completed} / ${run.progress.total}` : "Progress: Unknown";
   return (
     <section>
@@ -48,7 +50,8 @@ export function InitialAnalysis({ run, onCancel, onBackground, onRetry, onOpenWo
       <p>Symbols: {run.symbols ?? "Unknown"}</p>
       {run.status === "PARTIAL" && <p>Some analysis results are unavailable. Open only the available Workspace views.</p>}
       {running(run.status) && <>
-        <button onClick={onCancel} type="button">Cancel analysis</button>
+        {!canCancel && <p role="status">Starting analysis…</p>}
+        <button disabled={!canCancel} onClick={onCancel} type="button">Cancel analysis</button>
         <button onClick={onBackground} type="button">Continue in background</button>
       </>}
       {(run.status === "FAILED" || run.status === "CANCELLED") && <button onClick={onRetry} type="button">Retry analysis</button>}
