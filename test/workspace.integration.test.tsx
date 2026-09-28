@@ -10,15 +10,16 @@ describe("Workspace view integration", () => {
     render(<CodeContourApp />);
     fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Authentication" }));
-    fireEvent.click(screen.getByRole("button", { name: "Process / Data Flow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Code Viewer" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Login process" }));
     fireEvent.click(screen.getByRole("button", { name: "Select validateToken symbol" }));
+    fireEvent.click(screen.getByRole("button", { name: "Process / Data Flow" }));
 
     expect(screen.getByRole("heading", { name: "Process / Data Flow" })).not.toBeNull();
-    expect(screen.getAllByText("Project: CodeContour sample")).toHaveLength(3);
-    expect(screen.getAllByText("Feature: Authentication feature")).toHaveLength(3);
-    expect(screen.getAllByText("Process: Login process")).toHaveLength(3);
-    expect(screen.getAllByText("Symbol: validateToken")).toHaveLength(3);
+    expect(screen.getByLabelText("Workspace navigation").textContent).toContain("Project: CodeContour sample");
+    expect(screen.getByLabelText("Workspace navigation").textContent).toContain("Feature: Authentication feature");
+    expect(screen.getByLabelText("Workspace navigation").textContent).toContain("Process: Login process");
+    expect(screen.getByLabelText("Workspace navigation").textContent).toContain("Symbol: validateToken");
 
     fireEvent.click(screen.getByRole("button", { name: "Code Viewer" }));
     expect(screen.getByRole("heading", { name: "Code Viewer" })).not.toBeNull();

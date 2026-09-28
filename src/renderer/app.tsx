@@ -7,6 +7,7 @@ import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppR
 import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus, type StatusBadgeValue } from "./status-states.js";
 import { WorkspaceCanvas, WorkspaceInspector, WorkspaceNavigation, type WorkspaceSelection } from "./workspace.js";
 import { FeatureMapCanvas, FeatureMapInspector, type FeatureMapFeature, type FeatureMapRelation } from "./feature-map.js";
+import { ProcessDataFlowCanvas, ProcessDataFlowInspector, type FlowData, type FlowProcess, type ProcessDataFlowState } from "./process-data-flow.js";
 
 const defaultProjects: readonly HubProject[] = [{
   id: "sample-project",
@@ -29,15 +30,22 @@ export interface CodeContourAppProps {
   initialFeatureMapRelations?: readonly FeatureMapRelation[];
   initialFeatureMapFeaturesByProject?: Readonly<Record<string, readonly FeatureMapFeature[]>>;
   initialFeatureMapRelationsByProject?: Readonly<Record<string, readonly FeatureMapRelation[]>>;
+  initialProcessDataFlowByProject?: Readonly<Record<string, ProcessDataFlowState>>;
 }
 
 const defaultFeatureMap: readonly FeatureMapFeature[] = [{ id: "feature:authentication", name: "Authentication", confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 1, codeRefCount: 2, explanationCount: 0 }];
+const defaultProcessDataFlow: ProcessDataFlowState = { processes: [{ id: "process:login", featureId: "feature:authentication", name: "Login process", order: 0, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] }], flows: [] };
 function nextManualFeatureId(features: readonly FeatureMapFeature[]): string {
   let number = 1;
   while (features.some((feature) => feature.id === `feature:manual-${number}`)) ++number;
   return `feature:manual-${number}`;
 }
-export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects, repositorySetupApi = desktopRepositorySetupApi(), initialAnalysisApi = desktopInitialAnalysisApi(), initialFeatureMapFeatures = defaultFeatureMap, initialFeatureMapRelations = [], initialFeatureMapFeaturesByProject = {}, initialFeatureMapRelationsByProject = {} }: CodeContourAppProps) {
+function nextManualId(ids: readonly string[], kind: "process" | "flow"): string {
+  let number = 1;
+  while (ids.includes(`${kind}:manual-${number}`)) ++number;
+  return `${kind}:manual-${number}`;
+}
+export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects, repositorySetupApi = desktopRepositorySetupApi(), initialAnalysisApi = desktopInitialAnalysisApi(), initialFeatureMapFeatures = defaultFeatureMap, initialFeatureMapRelations = [], initialFeatureMapFeaturesByProject = {}, initialFeatureMapRelationsByProject = {}, initialProcessDataFlowByProject = {} }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
@@ -51,6 +59,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
   const [featureMapFeaturesByProject, setFeatureMapFeaturesByProject] = useState<Readonly<Record<string, readonly FeatureMapFeature[]>>>(() => ({ "sample-project": initialFeatureMapFeatures, ...initialFeatureMapFeaturesByProject }));
   const featureMapRelationsByProject: Readonly<Record<string, readonly FeatureMapRelation[]>> = { "sample-project": initialFeatureMapRelations, ...initialFeatureMapRelationsByProject };
+  const [processDataFlowByProject, setProcessDataFlowByProject] = useState<Readonly<Record<string, ProcessDataFlowState>>>(() => ({ "sample-project": defaultProcessDataFlow, ...initialProcessDataFlowByProject }));
 
   const navigate = (target: AppRoute) => {
     const resolved = resolveRoute(target, { projectId: project?.id ?? null, repositoryConnected });
@@ -162,18 +171,29 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const featureMapFeatures = project ? featureMapFeaturesByProject[project.id] ?? [] : [];
   const featureMapRelations = project ? featureMapRelationsByProject[project.id] ?? [] : [];
   const selectedFeature = selection?.feature ? featureMapFeatures.find((feature) => feature.id === selection.feature!.id) : undefined;
+  const flowState = project ? processDataFlowByProject[project.id] ?? { processes: [], flows: [] } : { processes: [], flows: [] };
+  const selectedProcess = selection?.process ? flowState.processes.find((process) => process.id === selection.process!.id && process.featureId === selectedFeature?.id) : undefined;
+  const selectedFlow = selection?.dataFlow ? flowState.flows.find((flow) => flow.id === selection.dataFlow!.id && flow.featureId === selectedFeature?.id) : undefined;
   const selectFeature = (feature: FeatureMapFeature) => setSelection({ feature: { id: feature.id, label: feature.name } });
   const createFeature = (name: string) => { const trimmed = name.trim(); if (!trimmed || !project) return; const feature: FeatureMapFeature = { id: nextManualFeatureId(featureMapFeatures), name: trimmed, confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 0, codeRefCount: 0, explanationCount: 0 }; const projectId = project.id; setFeatureMapFeaturesByProject((items) => ({ ...items, [projectId]: [...(items[projectId] ?? []), feature] })); selectFeature(feature); };
   const updateSelectedFeature = (update: (feature: FeatureMapFeature) => FeatureMapFeature) => { if (!selectedFeature || !project) return; const next = update(selectedFeature); const projectId = project.id; setFeatureMapFeaturesByProject((items) => ({ ...items, [projectId]: (items[projectId] ?? []).map((feature) => feature.id === next.id ? next : feature) })); selectFeature(next); };
+  const selectProcess = (process: FlowProcess) => { if (!selectedFeature || process.featureId !== selectedFeature.id) return; setSelection({ feature: { id: selectedFeature.id, label: selectedFeature.name }, process: { id: process.id, label: process.name } }); };
+  const selectFlow = (flow: FlowData) => { if (!selectedFeature || flow.featureId !== selectedFeature.id) return; const process = flowState.processes.find((item) => item.id === flow.fromProcessId && item.featureId === selectedFeature.id); if (!process) return; setSelection({ feature: { id: selectedFeature.id, label: selectedFeature.name }, process: { id: process.id, label: process.name }, dataFlow: { id: flow.id, label: flow.label } }); };
+  const createProcess = (name: string) => { const trimmed = name.trim(); if (!project || !selectedFeature || !trimmed) return; const projectId = project.id; const process: FlowProcess = { id: nextManualId(flowState.processes.map((item) => item.id), "process"), featureId: selectedFeature.id, name: trimmed, order: flowState.processes.filter((item) => item.featureId === selectedFeature.id).length, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] }; setProcessDataFlowByProject((items) => ({ ...items, [projectId]: { ...flowState, processes: [...flowState.processes, process] } })); selectProcess(process); };
+  const moveProcess = (processId: string, direction: -1 | 1) => { if (!project || !selectedFeature) return; const ordered = flowState.processes.filter((item) => item.featureId === selectedFeature.id).sort((a, b) => a.order - b.order); const index = ordered.findIndex((item) => item.id === processId); const other = ordered[index + direction]; if (index < 0 || !other) return; const projectId = project.id; setProcessDataFlowByProject((items) => ({ ...items, [projectId]: { ...flowState, processes: flowState.processes.map((item) => item.id === processId ? { ...item, order: other.order } : item.id === other.id ? { ...item, order: ordered[index].order } : item) } })); };
+  const renameProcess = (name: string) => { const trimmed = name.trim(); if (!project || !selectedFeature || !selectedProcess || !trimmed) return; const projectId = project.id; const next = { ...selectedProcess, name: trimmed }; setProcessDataFlowByProject((items) => ({ ...items, [projectId]: { ...flowState, processes: flowState.processes.map((item) => item.id === next.id ? next : item) } })); selectProcess(next); };
+  const deleteProcess = () => { if (!project || !selectedFeature || !selectedProcess) return; const projectId = project.id; setProcessDataFlowByProject((items) => ({ ...items, [projectId]: { processes: flowState.processes.filter((item) => item.id !== selectedProcess.id), flows: flowState.flows.filter((flow) => flow.fromProcessId !== selectedProcess.id && flow.toProcessId !== selectedProcess.id) } })); setSelection({ feature: { id: selectedFeature.id, label: selectedFeature.name } }); };
+  const createFlow = (input: { fromProcessId: string; toProcessId: string; label: string }) => { const label = input.label.trim(); if (!project || !selectedFeature || !label || input.fromProcessId === input.toProcessId) return; const endpoints = flowState.processes.filter((process) => process.featureId === selectedFeature.id && (process.id === input.fromProcessId || process.id === input.toProcessId)); if (endpoints.length !== 2) return; const projectId = project.id; const flow: FlowData = { id: nextManualId(flowState.flows.map((item) => item.id), "flow"), featureId: selectedFeature.id, fromProcessId: input.fromProcessId, toProcessId: input.toProcessId, label, verification: "UNVERIFIED", freshness: "CURRENT", evidence: [] }; setProcessDataFlowByProject((items) => ({ ...items, [projectId]: { ...flowState, flows: [...flowState.flows, flow] } })); selectFlow(flow); };
+  const addEvidence = (name: string) => { const trimmed = name.trim(); if (!project || !selectedFeature || !selectedFlow || !trimmed) return; const projectId = project.id; const next = { ...selectedFlow, verification: "EVIDENCED" as const, evidence: [...selectedFlow.evidence, { name: trimmed }] }; setProcessDataFlowByProject((items) => ({ ...items, [projectId]: { ...flowState, flows: flowState.flows.map((flow) => flow.id === next.id ? next : flow) } })); selectFlow(next); };
 
   return (
     <AppShell
       activeScreen={route.screen}
       activeView={view}
       onScreenChange={(screen: ScreenId) => navigate({ screen })}
-      onViewChange={setView}
+      onViewChange={(nextView) => { if (nextView === "process-data-flow" && !selectedFeature) return; setView(nextView); }}
       project={project}
-      workspaceInspector={route.screen === "workspace" && view === "feature-map" ? <FeatureMapInspector feature={selectedFeature} onArchive={() => updateSelectedFeature((feature) => ({ ...feature, lifecycle: "ARCHIVED" }))} onEdit={(name) => updateSelectedFeature((feature) => ({ ...feature, name: name.trim() }))} onViewFlow={() => setView("process-data-flow")} /> : route.screen === "workspace" && workspaceContext ? <WorkspaceInspector context={workspaceContext} /> : undefined}
+      workspaceInspector={route.screen === "workspace" && view === "feature-map" ? <FeatureMapInspector feature={selectedFeature} onArchive={() => updateSelectedFeature((feature) => ({ ...feature, lifecycle: "ARCHIVED" }))} onEdit={(name) => updateSelectedFeature((feature) => ({ ...feature, name: name.trim() }))} onViewFlow={() => setView("process-data-flow")} /> : route.screen === "workspace" && view === "process-data-flow" ? <ProcessDataFlowInspector feature={selectedFeature ? { id: selectedFeature.id, label: selectedFeature.name } : undefined} flow={selectedFlow} onAddEvidence={addEvidence} onDeleteProcess={deleteProcess} onRenameProcess={renameProcess} process={selectedProcess} processes={flowState.processes} /> : route.screen === "workspace" && workspaceContext ? <WorkspaceInspector context={workspaceContext} /> : undefined}
       workspaceNavigation={route.screen === "workspace" && workspaceContext ? <WorkspaceNavigation context={workspaceContext} /> : undefined}
     >
       {route.screen === "project-hub" && (
@@ -190,7 +210,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
       />}
       {route.screen === "workspace" && (
         <section>
-          {view === "feature-map" ? <FeatureMapCanvas features={featureMapFeatures} onCreate={createFeature} onSelect={selectFeature} relations={featureMapRelations} selectedFeatureId={selection?.feature?.id} /> : workspaceContext && <WorkspaceCanvas context={workspaceContext} onSelect={setSelection} />}
+          {view === "feature-map" ? <FeatureMapCanvas features={featureMapFeatures} onCreate={createFeature} onSelect={selectFeature} relations={featureMapRelations} selectedFeatureId={selection?.feature?.id} /> : view === "process-data-flow" ? <ProcessDataFlowCanvas feature={selectedFeature ? { id: selectedFeature.id, label: selectedFeature.name } : undefined} flows={flowState.flows} onCreateFlow={createFlow} onCreateProcess={createProcess} onMoveProcess={moveProcess} onSelectFlow={selectFlow} onSelectProcess={selectProcess} processes={flowState.processes} selectedFlowId={selectedFlow?.id} selectedProcessId={selectedProcess?.id} /> : workspaceContext && <WorkspaceCanvas context={workspaceContext} onSelect={setSelection} />}
           {selection
             ? <p>{`Selected: ${selection.symbol?.label ?? selection.process?.label ?? selection.feature?.label ?? "None"}`}</p>
             : <EmptyState action="Select a feature to inspect its analysis state." description="No feature is selected in this Workspace." title="No feature selected" />}
