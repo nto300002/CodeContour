@@ -8,7 +8,11 @@ afterEach(cleanup);
 const context: WorkspaceContext = {
   project: { id: "project-1", name: "CodeContour" },
   view: "feature-map",
-  selection: { kind: "feature", label: "Authentication feature" },
+  selection: {
+    feature: { id: "feature:authentication", label: "Authentication feature" },
+    process: { id: "process:login", label: "Login process" },
+    symbol: { id: "symbol:validate-token", label: "validateToken" },
+  },
 };
 
 describe("Workspace selection projection", () => {
@@ -19,15 +23,17 @@ describe("Workspace selection projection", () => {
       <WorkspaceInspector context={context} />
     </>);
 
-    expect(screen.getByLabelText("Workspace navigation").textContent).toContain("Selection: Authentication feature");
-    expect(screen.getByLabelText("Workspace canvas").textContent).toContain("Selection: Authentication feature");
-    expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Selection: Authentication feature");
+    for (const pane of ["Workspace navigation", "Workspace canvas", "Workspace inspector"]) {
+      expect(screen.getByLabelText(pane).textContent).toContain("Feature: Authentication feature");
+      expect(screen.getByLabelText(pane).textContent).toContain("Process: Login process");
+      expect(screen.getByLabelText(pane).textContent).toContain("Symbol: validateToken");
+    }
   });
 
   it("emits a feature Selection from the Canvas without owning it", () => {
     const onSelect = vi.fn();
     render(<WorkspaceCanvas context={{ ...context, selection: null }} onSelect={onSelect} />);
     fireEvent.click(screen.getByRole("button", { name: "Select Authentication feature" }));
-    expect(onSelect).toHaveBeenCalledWith({ kind: "feature", label: "Authentication feature" });
+    expect(onSelect).toHaveBeenCalledWith({ feature: { id: "feature:authentication", label: "Authentication feature" } });
   });
 });

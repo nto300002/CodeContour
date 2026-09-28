@@ -1,10 +1,15 @@
 import type { ProjectSelection, WorkspaceView } from "./app-shell.js";
 
-export type WorkspaceSelectionKind = "feature" | "process" | "symbol";
-
-export interface WorkspaceSelection {
-  kind: WorkspaceSelectionKind;
+export interface WorkspaceEntitySelection {
+  id: string;
   label: string;
+}
+
+/** Hierarchical selection identity; later persistence owns its invariants. */
+export interface WorkspaceSelection {
+  feature?: WorkspaceEntitySelection;
+  process?: WorkspaceEntitySelection;
+  symbol?: WorkspaceEntitySelection;
 }
 
 /** The single Renderer-owned context projected into all Workspace panes. */
@@ -23,7 +28,9 @@ const viewLabel: Record<WorkspaceView, string> = {
 function ContextSummary({ context }: { context: WorkspaceContext }) {
   return <>
     <p>Project: {context.project.name}</p>
-    <p>Selection: {context.selection?.label ?? "None"}</p>
+    <p>Feature: {context.selection?.feature?.label ?? "None"}</p>
+    <p>Process: {context.selection?.process?.label ?? "None"}</p>
+    <p>Symbol: {context.selection?.symbol?.label ?? "None"}</p>
   </>;
 }
 
@@ -36,7 +43,9 @@ export function WorkspaceCanvas({ context, onSelect }: { context: WorkspaceConte
     <section aria-label="Workspace canvas">
       <h1>{viewLabel[context.view]}</h1>
       <ContextSummary context={context} />
-      <button onClick={() => onSelect({ kind: "feature", label: "Authentication feature" })} type="button">Select Authentication feature</button>
+      <button onClick={() => onSelect({ feature: { id: "feature:authentication", label: "Authentication feature" } })} type="button">Select Authentication feature</button>
+      <button onClick={() => onSelect({ feature: { id: "feature:authentication", label: "Authentication feature" }, process: { id: "process:login", label: "Login process" } })} type="button">Select Login process</button>
+      <button onClick={() => onSelect({ feature: { id: "feature:authentication", label: "Authentication feature" }, process: { id: "process:login", label: "Login process" }, symbol: { id: "symbol:validate-token", label: "validateToken" } })} type="button">Select validateToken symbol</button>
     </section>
   );
 }

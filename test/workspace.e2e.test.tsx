@@ -10,12 +10,16 @@ describe("Understanding Workspace E2E", () => {
     render(<CodeContourApp />);
     fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Authentication feature" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Login process" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select validateToken symbol" }));
 
     for (const view of ["Process / Data Flow", "Code Viewer", "Feature Map"] as const) {
       fireEvent.click(screen.getByRole("button", { name: view }));
       expect(window.location.hash).toBe("#/workspace");
       expect(screen.getByRole("heading", { name: view })).not.toBeNull();
-      expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Selection: Authentication feature");
+      expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Feature: Authentication feature");
+      expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Process: Login process");
+      expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Symbol: validateToken");
     }
   });
 });

@@ -61,7 +61,9 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
       setAnalysisPhase(hubProject.analysisStatus === "PENDING" ? "Waiting to start" : "Analysis state restored");
     }
     setView(restoreSelection ? hubProject.savedSelection?.view ?? "feature-map" : "feature-map");
-    setSelection(restoreSelection && hubProject.savedSelection?.featureName ? { kind: "feature", label: hubProject.savedSelection.featureName } : null);
+    setSelection(restoreSelection && hubProject.savedSelection?.featureId && hubProject.savedSelection.featureName
+      ? { feature: { id: hubProject.savedSelection.featureId, label: hubProject.savedSelection.featureName } }
+      : null);
     setRoute(resolved.route);
     setReturnPath(resolved.returnPath);
     window.location.hash = routeHash(resolved.route);
@@ -171,7 +173,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
         <section>
           {workspaceContext && <WorkspaceCanvas context={workspaceContext} onSelect={setSelection} />}
           {selection
-            ? <p>{`Selected: ${selection.label}`}</p>
+            ? <p>{`Selected: ${selection.symbol?.label ?? selection.process?.label ?? selection.feature?.label ?? "None"}`}</p>
             : <EmptyState action="Select a feature to inspect its analysis state." description="No feature is selected in this Workspace." title="No feature selected" />}
           <StatusBadge status={selectionBadge} />
           {analysisStatus === "PARTIAL"
