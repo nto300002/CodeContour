@@ -6,6 +6,7 @@ import { desktopRepositorySetupApi, RepositorySetup, type RepositorySetupApi } f
 import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
 import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus, type StatusBadgeValue } from "./status-states.js";
 import { WorkspaceCanvas, WorkspaceInspector, WorkspaceNavigation, type WorkspaceSelection } from "./workspace.js";
+import { FeatureMapCanvas, FeatureMapInspector, type FeatureMapFeature, type FeatureMapRelation } from "./feature-map.js";
 
 const defaultProjects: readonly HubProject[] = [{
   id: "sample-project",
@@ -24,9 +25,12 @@ export interface CodeContourAppProps {
   initialProjects?: readonly HubProject[];
   repositorySetupApi?: RepositorySetupApi;
   initialAnalysisApi?: InitialAnalysisApi;
+  initialFeatureMapFeatures?: readonly FeatureMapFeature[];
+  initialFeatureMapRelations?: readonly FeatureMapRelation[];
 }
 
-export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects, repositorySetupApi = desktopRepositorySetupApi(), initialAnalysisApi = desktopInitialAnalysisApi() }: CodeContourAppProps) {
+const defaultFeatureMap: readonly FeatureMapFeature[] = [{ id: "feature:authentication", name: "Authentication", confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 1, codeRefCount: 2, explanationCount: 0 }];
+export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects, repositorySetupApi = desktopRepositorySetupApi(), initialAnalysisApi = desktopInitialAnalysisApi(), initialFeatureMapFeatures = defaultFeatureMap, initialFeatureMapRelations = [] }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
@@ -38,6 +42,8 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const analysisStartRequestId = useRef(0);
   const [selection, setSelection] = useState<WorkspaceSelection | null>(null);
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
+  const [featureMapFeatures, setFeatureMapFeatures] = useState<readonly FeatureMapFeature[]>(initialFeatureMapFeatures);
+  const featureNumber = useRef(0);
 
   const navigate = (target: AppRoute) => {
     const resolved = resolveRoute(target, { projectId: project?.id ?? null, repositoryConnected });
@@ -146,6 +152,10 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   };
 
   const workspaceContext = project ? { project, view, selection } : undefined;
+  const selectedFeature = selection?.feature ? featureMapFeatures.find((feature) => feature.id === selection.feature!.id) : undefined;
+  const selectFeature = (feature: FeatureMapFeature) => setSelection({ feature: { id: feature.id, label: feature.name } });
+  const createFeature = (name: string) => { const trimmed = name.trim(); if (!trimmed) return; const feature: FeatureMapFeature = { id: `feature:manual-${++featureNumber.current}`, name: trimmed, confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 0, codeRefCount: 0, explanationCount: 0 }; setFeatureMapFeatures((items) => [...items, feature]); selectFeature(feature); };
+  const updateSelectedFeature = (update: (feature: FeatureMapFeature) => FeatureMapFeature) => { if (!selectedFeature) return; const next = update(selectedFeature); setFeatureMapFeatures((items) => items.map((feature) => feature.id === next.id ? next : feature)); selectFeature(next); };
 
   return (
     <AppShell
@@ -154,7 +164,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
       onScreenChange={(screen: ScreenId) => navigate({ screen })}
       onViewChange={setView}
       project={project}
-      workspaceInspector={route.screen === "workspace" && workspaceContext ? <WorkspaceInspector context={workspaceContext} /> : undefined}
+      workspaceInspector={route.screen === "workspace" && view === "feature-map" ? <FeatureMapInspector feature={selectedFeature} onArchive={() => updateSelectedFeature((feature) => ({ ...feature, lifecycle: "ARCHIVED" }))} onEdit={(name) => updateSelectedFeature((feature) => ({ ...feature, name: name.trim() }))} onViewFlow={() => setView("process-data-flow")} /> : route.screen === "workspace" && workspaceContext ? <WorkspaceInspector context={workspaceContext} /> : undefined}
       workspaceNavigation={route.screen === "workspace" && workspaceContext ? <WorkspaceNavigation context={workspaceContext} /> : undefined}
     >
       {route.screen === "project-hub" && (
@@ -171,7 +181,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
       />}
       {route.screen === "workspace" && (
         <section>
-          {workspaceContext && <WorkspaceCanvas context={workspaceContext} onSelect={setSelection} />}
+          {view === "feature-map" ? <FeatureMapCanvas features={featureMapFeatures} onCreate={createFeature} onSelect={selectFeature} relations={initialFeatureMapRelations} selectedFeatureId={selection?.feature?.id} /> : workspaceContext && <WorkspaceCanvas context={workspaceContext} onSelect={setSelection} />}
           {selection
             ? <p>{`Selected: ${selection.symbol?.label ?? selection.process?.label ?? selection.feature?.label ?? "None"}`}</p>
             : <EmptyState action="Select a feature to inspect its analysis state." description="No feature is selected in this Workspace." title="No feature selected" />}
