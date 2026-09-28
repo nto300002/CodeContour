@@ -4,6 +4,7 @@ import { EmptyState } from "./status-states.js";
 
 export interface SavedWorkspaceSelection {
   view: WorkspaceView;
+  featureId?: string;
   featureName?: string;
 }
 

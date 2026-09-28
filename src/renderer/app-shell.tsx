@@ -56,6 +56,8 @@ export interface AppShellProps {
   project: ProjectSelection | null;
   onScreenChange?: (screen: ScreenId) => void;
   onViewChange?: (view: WorkspaceView) => void;
+  workspaceNavigation?: ReactNode;
+  workspaceInspector?: ReactNode;
   children: ReactNode;
 }
 
@@ -63,7 +65,7 @@ export interface AppShellProps {
  * Renderer-only shared layout. Application capabilities are supplied later by
  * a typed preload API; this component never imports Node or Electron APIs.
  */
-export function AppShell({ activeScreen, activeView = "feature-map", project, onScreenChange, onViewChange, children }: AppShellProps) {
+export function AppShell({ activeScreen, activeView = "feature-map", project, onScreenChange, onViewChange, workspaceNavigation, workspaceInspector, children }: AppShellProps) {
   const hasProject = isProjectNavigationEnabled(project);
   const projectNavigationState = hasProject ? "enabled" : "disabled";
 
@@ -99,9 +101,10 @@ export function AppShell({ activeScreen, activeView = "feature-map", project, on
               <nav aria-label="Workspace view navigation">
                 {workspaceViews.map((view) => <button aria-current={view.id === activeView ? "page" : undefined} key={view.id} onClick={() => onViewChange?.(view.id)} type="button">{view.label}</button>)}
               </nav>
+              {workspaceNavigation}
             </aside>
             <main data-pane="canvas" style={canvasStyle}>{children}</main>
-            <aside data-pane="inspector" style={{ ...paneStyle, borderRight: undefined }}>Inspector</aside>
+            <aside data-pane="inspector" style={{ ...paneStyle, borderRight: undefined }}>{workspaceInspector ?? "Inspector"}</aside>
           </div>
         )}
         {activeScreen !== "project-hub" && activeScreen !== "workspace" && <main data-layout="screen-content" style={{ ...canvasStyle, height: "100%" }}>{children}</main>}

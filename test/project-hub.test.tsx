@@ -11,7 +11,7 @@ const readyProject: HubProject = {
   analysisStatus: "READY",
   connectionStatus: "CONNECTED",
   hasActiveSnapshot: true,
-  savedSelection: { view: "code-viewer", featureName: "Authentication" },
+  savedSelection: { view: "code-viewer", featureId: "feature:authentication", featureName: "Authentication" },
 };
 
 afterEach(cleanup);
