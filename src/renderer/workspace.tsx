@@ -9,6 +9,7 @@ export interface WorkspaceEntitySelection {
 export interface WorkspaceSelection {
   feature?: WorkspaceEntitySelection;
   process?: WorkspaceEntitySelection;
+  dataFlow?: WorkspaceEntitySelection;
   symbol?: WorkspaceEntitySelection;
 }
 
@@ -30,6 +31,7 @@ function ContextSummary({ context }: { context: WorkspaceContext }) {
     <p>Project: {context.project.name}</p>
     <p>Feature: {context.selection?.feature?.label ?? "None"}</p>
     <p>Process: {context.selection?.process?.label ?? "None"}</p>
+    <p>Data flow: {context.selection?.dataFlow?.label ?? "None"}</p>
     <p>Symbol: {context.selection?.symbol?.label ?? "None"}</p>
   </>;
 }

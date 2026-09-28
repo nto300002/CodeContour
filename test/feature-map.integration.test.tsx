@@ -18,6 +18,7 @@ describe("Feature Map selection and view transition", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "View Authentication flow" }));
     expect(screen.getByRole("heading", { name: "Process / Data Flow" })).not.toBeNull();
-    expect(screen.getAllByText("Feature: Authentication")).toHaveLength(3);
+    expect(screen.getByLabelText("Process / Data Flow canvas").textContent).toContain("Selected Feature: Authentication");
+    expect(screen.getByLabelText("Process / Data Flow inspector").textContent).toContain("Selected Feature: Authentication");
   });
 });
