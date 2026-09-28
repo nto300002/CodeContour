@@ -2,6 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { join } = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { registerInitialAnalysisIpcHandlers } = require("./initial-analysis-ipc.cjs");
+const { registerProjectModelIpcHandlers } = require("./project-model-ipc.cjs");
 
 if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   require("./test/fixtures/sqlite-packaged-main.cjs");
@@ -10,6 +11,15 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   const validPath = (value) => typeof value === "string" && value.length > 0;
   const loadRepositoryReader = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "repository-reader.js")).href);
   const loadInitialAnalysisRun = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "initial-analysis-run.js")).href);
+  const loadProjectModelRuntime = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "main-project-model-runtime.js")).href);
+  let projectModelRuntime;
+  const projectModel = async () => {
+    if (!projectModelRuntime) {
+      const { MainProjectModelRuntime } = await loadProjectModelRuntime();
+      projectModelRuntime = new MainProjectModelRuntime(join(app.getPath("userData"), "codecontour.sqlite"));
+    }
+    return projectModelRuntime;
+  };
 
   ipcMain.handle("repository-setup:pick-root", async (event) => {
     if (!senderIsTrusted(event)) throw new Error("Untrusted IPC sender.");
@@ -34,6 +44,11 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
     return { ok: true, language: "TypeScript", estimatedFileCount: result.files.length, tsconfigPath: result.configFilePath };
   });
   registerInitialAnalysisIpcHandlers({ ipcMain, senderIsTrusted, validPath, loadInitialAnalysisRun });
+  registerProjectModelIpcHandlers({
+    ipcMain, senderIsTrusted, validId: validPath,
+    loadCommands: async (projectId) => (await projectModel()).commands(projectId),
+    resolveProjectSymbol: async (projectId, symbolId) => (await projectModel()).resolveProjectSymbol(projectId, symbolId),
+  });
 
   const createWindow = () => {
     const window = new BrowserWindow({
@@ -57,6 +72,7 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   });
 
   app.on("window-all-closed", () => {
+    if (projectModelRuntime) projectModelRuntime.close();
     if (process.platform !== "darwin") app.quit();
   });
 }
