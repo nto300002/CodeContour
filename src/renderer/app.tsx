@@ -33,7 +33,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const [returnPath, setReturnPath] = useState<AppRoute>();
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>(initialAnalysisStatus);
   const [analysisPhase, setAnalysisPhase] = useState("Waiting to start");
-  const [analysisRunId, setAnalysisRunId] = useState<string>();
+  const [analysisRun, setAnalysisRun] = useState<{ id: string; projectId: string }>();
   const analysisStartRequestId = useRef(0);
   const [selection, setSelection] = useState<string | null>(null);
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
@@ -52,6 +52,9 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     const resolved = resolveRoute(target, { projectId: selectedProject.id, repositoryConnected: repositoryIsConnected });
     setProject(selectedProject);
     setRepositoryConnected(repositoryIsConnected);
+    // A background Run remains Main-owned, but must never control another Project's screen.
+    ++analysisStartRequestId.current;
+    setAnalysisRun(undefined);
     if (!hubProject.hasActiveSnapshot) {
       setAnalysisStatus(hubProject.analysisStatus);
       setAnalysisPhase(hubProject.analysisStatus === "PENDING" ? "Waiting to start" : "Analysis state restored");
@@ -71,10 +74,10 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     const requestId = ++analysisStartRequestId.current;
     setAnalysisStatus("PENDING");
     setAnalysisPhase("Starting analysis");
-    setAnalysisRunId(undefined);
+    setAnalysisRun(undefined);
     void initialAnalysisApi.start({ projectId }).then((run) => {
       if (requestId !== analysisStartRequestId.current) return;
-      setAnalysisRunId(run.runId);
+      setAnalysisRun({ id: run.runId, projectId });
       setAnalysisStatus(run.status);
       setAnalysisPhase(run.phase);
     }).catch(() => {
@@ -97,8 +100,10 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   };
 
   const cancelInitialAnalysis = () => {
-    if (!analysisRunId) return;
-    void initialAnalysisApi.cancel({ runId: analysisRunId }).then((result) => {
+    if (!analysisRun || analysisRun.projectId !== project?.id) return;
+    const requestId = analysisStartRequestId.current;
+    void initialAnalysisApi.cancel({ runId: analysisRun.id }).then((result) => {
+      if (requestId !== analysisStartRequestId.current) return;
       setAnalysisStatus(result.status);
       setAnalysisPhase(result.phase);
     });
@@ -145,7 +150,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
         onBackground={() => navigate({ screen: "project-hub" })}
         onCancel={cancelInitialAnalysis}
         onOpenWorkspace={() => navigate({ screen: "workspace" })}
-        canCancel={analysisRunId !== undefined}
+        canCancel={analysisRun?.projectId === project?.id}
         onRetry={() => { if (project) beginInitialAnalysis(project.id); }}
         run={{ status: analysisStatus, phase: analysisPhase }}
       />}

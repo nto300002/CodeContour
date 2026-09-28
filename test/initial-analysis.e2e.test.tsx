@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CodeContourApp } from "../src/renderer/app.js";
 import { InitialAnalysisRunController } from "../src/initial-analysis-run.js";
 import type { InitialAnalysisApi } from "../src/renderer/initial-analysis.js";
+import type { HubProject } from "../src/renderer/project-hub.js";
 import type { RepositorySetupApi } from "../src/renderer/repository-setup.js";
 
 afterEach(() => { cleanup(); window.history.replaceState({}, "", "/"); });
@@ -37,5 +38,31 @@ describe("Initial Analysis E2E", () => {
     expect(await screen.findByText("State: CANCELLED")).not.toBeNull();
     expect(analysisApi.cancel).toHaveBeenCalledWith({ runId });
     expect(controller.receive({ analysisRunId: runId, stagingSnapshotId: "staging-from-ui", sequenceNumber: 1 })).toEqual({ accepted: false, reason: "RUN_CANCELLED" });
+  });
+
+  it("does not let a Project B screen cancel Project A's background Run", async () => {
+    const projectB: HubProject = {
+      id: "project-b", name: "Project B", language: "TypeScript", updatedAt: "2026-09-28",
+      analysisStatus: "PENDING", connectionStatus: "CONNECTED", hasActiveSnapshot: false,
+    };
+    const analysisApi: InitialAnalysisApi = {
+      start: vi.fn(async () => ({ runId: "run-a", status: "ANALYZING" as const, phase: "Indexing source files" })),
+      cancel: vi.fn(async () => ({ status: "CANCELLED" as const, phase: "Cancelled by user" })),
+    };
+    render(<CodeContourApp initialAnalysisApi={analysisApi} initialProjects={[projectB]} repositorySetupApi={validApi} />);
+    fireEvent.click(screen.getByRole("button", { name: "Register new project" }));
+    fireEvent.change(screen.getByLabelText("Repository Root"), { target: { value: "/work/project-a" } });
+    fireEvent.change(screen.getByLabelText("tsconfig path"), { target: { value: "tsconfig.json" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate configuration" }));
+    await screen.findByText("Language: TypeScript");
+    fireEvent.click(screen.getByRole("button", { name: "Start initial analysis" }));
+    expect(await screen.findByText("State: ANALYZING")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Continue in background" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Project B" }));
+
+    expect(await screen.findByText("State: PENDING")).not.toBeNull();
+    expect((screen.getByRole("button", { name: "Cancel analysis" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel analysis" }));
+    expect(analysisApi.cancel).not.toHaveBeenCalled();
   });
 });
