@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppShell, type ProjectSelection, type ScreenId, type WorkspaceView } from "./app-shell.js";
 import { ProjectHub, type HubProject } from "./project-hub.js";
+import { InitialAnalysis } from "./initial-analysis.js";
 import { desktopRepositorySetupApi, RepositorySetup, type RepositorySetupApi } from "./repository-setup.js";
 import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
 import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus, type StatusBadgeValue } from "./status-states.js";
@@ -30,6 +31,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const [repositoryConnected, setRepositoryConnected] = useState(true);
   const [returnPath, setReturnPath] = useState<AppRoute>();
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>(initialAnalysisStatus);
+  const [analysisPhase, setAnalysisPhase] = useState("Waiting to start");
   const [selection, setSelection] = useState<string | null>(null);
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
 
@@ -47,6 +49,10 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     const resolved = resolveRoute(target, { projectId: selectedProject.id, repositoryConnected: repositoryIsConnected });
     setProject(selectedProject);
     setRepositoryConnected(repositoryIsConnected);
+    if (!hubProject.hasActiveSnapshot) {
+      setAnalysisStatus(hubProject.analysisStatus);
+      setAnalysisPhase(hubProject.analysisStatus === "PENDING" ? "Waiting to start" : "Analysis state restored");
+    }
     setView(restoreSelection ? hubProject.savedSelection?.view ?? "feature-map" : "feature-map");
     setSelection(restoreSelection ? hubProject.savedSelection?.featureName ?? null : null);
     setRoute(resolved.route);
@@ -64,6 +70,8 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     const resolved = resolveRoute({ screen: "initial-analysis" }, { projectId: selectedProject.id, repositoryConnected: true });
     setProject(selectedProject);
     setRepositoryConnected(true);
+    setAnalysisStatus("PENDING");
+    setAnalysisPhase("Waiting to start");
     setRoute(resolved.route);
     setReturnPath(resolved.returnPath);
     window.location.hash = routeHash(resolved.route);
@@ -106,6 +114,13 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
         <ProjectHub onContinue={(hubProject) => openProject(hubProject, true)} onOpen={(hubProject) => openProject(hubProject, false)} onRegister={registerProject} projects={initialProjects} />
       )}
       {route.screen === "repository-setup" && <RepositorySetup api={repositorySetupApi} onCancel={() => navigate({ screen: "project-hub" })} onStartAnalysis={startInitialAnalysis} />}
+      {route.screen === "initial-analysis" && <InitialAnalysis
+        onBackground={() => navigate({ screen: "project-hub" })}
+        onCancel={() => { setAnalysisStatus("CANCELLED"); setAnalysisPhase("Cancelled by user"); }}
+        onOpenWorkspace={() => navigate({ screen: "workspace" })}
+        onRetry={() => { setAnalysisStatus("ANALYZING"); setAnalysisPhase("Indexing source files"); }}
+        run={{ status: analysisStatus, phase: analysisPhase }}
+      />}
       {route.screen === "workspace" && (
         <section>
           <h1>{view === "feature-map" ? "Feature Map" : view === "process-data-flow" ? "Process / Data Flow" : "Code Viewer"}</h1>
