@@ -10,7 +10,7 @@ describe("Process / Data Flow editing", () => {
     render(<CodeContourApp initialProcessDataFlowByProject={{ "sample-project": { processes: [
       { id: "login", featureId: "feature:authentication", name: "Login", order: 1, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] },
       { id: "validate", featureId: "feature:authentication", name: "Validate", order: 0, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] },
-    ], flows: [] } }} />);
+    ], flows: [{ id: "login-session", featureId: "feature:authentication", fromProcessId: "login", toProcessId: "validate", label: "login session", verification: "UNVERIFIED", freshness: "CURRENT", evidence: [] }] } }} />);
     fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Authentication" }));
     fireEvent.click(screen.getByRole("button", { name: "View Authentication flow" }));
@@ -22,5 +22,13 @@ describe("Process / Data Flow editing", () => {
     expect(screen.getAllByLabelText("Selected Feature").every((element) => element.textContent?.includes("Authentication"))).toBe(true);
     expect(screen.getAllByRole("article", { name: /Process:/ })[0].getAttribute("data-process-order")).toBe("0");
     expect(screen.getAllByRole("article", { name: /Process:/ })[0].textContent).toContain("Sign in");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select login session data flow" }));
+    fireEvent.change(screen.getByLabelText("Edit data flow label"), { target: { value: "authenticated session" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save data flow label" }));
+    expect(screen.getByRole("article", { name: "Data flow: authenticated session" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Delete data flow" }));
+    expect(screen.queryByRole("article", { name: "Data flow: authenticated session" })).toBeNull();
+    expect(screen.getAllByLabelText("Selected Feature").every((element) => element.textContent?.includes("Authentication"))).toBe(true);
   });
 });
