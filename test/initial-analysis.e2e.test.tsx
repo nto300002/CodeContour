@@ -19,7 +19,7 @@ describe("Initial Analysis E2E", () => {
     const startResult = new Promise<{ runId: string; status: "ANALYZING"; phase: string }>((resolve) => { resolveStart = resolve; });
     const analysisApi: InitialAnalysisApi = {
       start: vi.fn(() => startResult),
-      cancel: vi.fn(async ({ runId: cancelledRunId }: { runId: string }) => { expect(cancelledRunId).toBe(runId); controller.cancel(); return { status: "CANCELLED" as const, phase: "Cancelled by user" }; }),
+      cancel: vi.fn(async ({ runId: cancelledRunId }: { runId: string; projectId: string }) => { expect(cancelledRunId).toBe(runId); controller.cancel(); return { status: "CANCELLED" as const, phase: "Cancelled by user" }; }),
     };
     render(<CodeContourApp initialAnalysisApi={analysisApi} initialProjects={[]} repositorySetupApi={validApi} />);
     fireEvent.click(screen.getByRole("button", { name: "Register new project" }));
@@ -36,7 +36,7 @@ describe("Initial Analysis E2E", () => {
     expect(await screen.findByText("State: ANALYZING")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cancel analysis" }));
     expect(await screen.findByText("State: CANCELLED")).not.toBeNull();
-    expect(analysisApi.cancel).toHaveBeenCalledWith({ runId });
+    expect(analysisApi.cancel).toHaveBeenCalledWith({ runId, projectId: "setup:/work/project" });
     expect(controller.receive({ analysisRunId: runId, stagingSnapshotId: "staging-from-ui", sequenceNumber: 1 })).toEqual({ accepted: false, reason: "RUN_CANCELLED" });
   });
 

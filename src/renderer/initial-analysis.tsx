@@ -22,7 +22,7 @@ export interface InitialAnalysisProps {
 
 export interface InitialAnalysisApi {
   start(input: { projectId: string }): Promise<{ runId: string; status: "ANALYZING"; phase: string }>;
-  cancel(input: { runId: string }): Promise<{ status: "CANCELLED"; phase: string }>;
+  cancel(input: { runId: string; projectId: string }): Promise<{ status: "CANCELLED"; phase: string }>;
 }
 
 const unavailableApi: InitialAnalysisApi = {

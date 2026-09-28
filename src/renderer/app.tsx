@@ -102,7 +102,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const cancelInitialAnalysis = () => {
     if (!analysisRun || analysisRun.projectId !== project?.id) return;
     const requestId = analysisStartRequestId.current;
-    void initialAnalysisApi.cancel({ runId: analysisRun.id }).then((result) => {
+    void initialAnalysisApi.cancel({ runId: analysisRun.id, projectId: analysisRun.projectId }).then((result) => {
       if (requestId !== analysisStartRequestId.current) return;
       setAnalysisStatus(result.status);
       setAnalysisPhase(result.phase);
