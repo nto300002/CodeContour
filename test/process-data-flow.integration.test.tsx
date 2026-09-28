@@ -6,6 +6,24 @@ import { CodeContourApp } from "../src/renderer/app.js";
 afterEach(() => { cleanup(); window.history.replaceState({}, "", "/"); });
 
 describe("Process / Data Flow editing", () => {
+  it("normalizes Process order after deletion, creation, and reordering", () => {
+    render(<CodeContourApp initialProcessDataFlowByProject={{ "sample-project": { processes: [
+      { id: "first", featureId: "feature:authentication", name: "First", order: 0, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] },
+      { id: "middle", featureId: "feature:authentication", name: "Middle", order: 1, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] },
+      { id: "last", featureId: "feature:authentication", name: "Last", order: 2, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] },
+    ], flows: [] } }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Authentication" }));
+    fireEvent.click(screen.getByRole("button", { name: "View Authentication flow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Middle process" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete process" }));
+    fireEvent.change(screen.getByLabelText("New process name"), { target: { value: "Replacement" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add process" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move Replacement up" }));
+
+    expect(screen.getAllByRole("article", { name: /Process:/ }).map((element) => element.getAttribute("data-process-order"))).toEqual(["0", "1", "2"]);
+  });
+
   it("edits and reorders a Process without leaving the selected Feature", () => {
     render(<CodeContourApp initialProcessDataFlowByProject={{ "sample-project": { processes: [
       { id: "login", featureId: "feature:authentication", name: "Login", order: 1, lifecycle: "ACTIVE", codeRefCount: 0, inputs: [], outputs: [] },
