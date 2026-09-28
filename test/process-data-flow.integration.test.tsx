@@ -45,6 +45,13 @@ describe("Process / Data Flow editing", () => {
     fireEvent.change(screen.getByLabelText("Edit data flow label"), { target: { value: "authenticated session" } });
     fireEvent.click(screen.getByRole("button", { name: "Save data flow label" }));
     expect(screen.getByRole("article", { name: "Data flow: authenticated session" })).not.toBeNull();
+    fireEvent.change(screen.getByLabelText("Edit from process"), { target: { value: "validate" } });
+    fireEvent.change(screen.getByLabelText("Edit to process"), { target: { value: "login" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save data flow endpoints" }));
+    expect(screen.getByRole("article", { name: "Data flow: authenticated session" }).textContent).toContain("From: Validate · To: Sign in");
+    fireEvent.change(screen.getByLabelText("Edit from process"), { target: { value: "login" } });
+    expect(screen.getByRole("button", { name: "Save data flow endpoints" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("article", { name: "Data flow: authenticated session" }).textContent).toContain("From: Validate · To: Sign in");
     fireEvent.click(screen.getByRole("button", { name: "Delete data flow" }));
     expect(screen.queryByRole("article", { name: "Data flow: authenticated session" })).toBeNull();
     expect(screen.getAllByLabelText("Selected Feature").every((element) => element.textContent?.includes("Authentication"))).toBe(true);

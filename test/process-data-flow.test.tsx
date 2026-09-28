@@ -22,7 +22,7 @@ describe("Process / Data Flow projection", () => {
   });
 
   it("projects related code, data, and evidence into the Inspector", () => {
-    render(<ProcessDataFlowInspector feature={feature} flow={flows[0]} onAddEvidence={vi.fn()} onDeleteFlow={vi.fn()} onDeleteProcess={vi.fn()} onRenameFlow={vi.fn()} onRenameProcess={vi.fn()} process={processes[0]} processes={processes} />);
+    render(<ProcessDataFlowInspector feature={feature} flow={flows[0]} onAddEvidence={vi.fn()} onDeleteFlow={vi.fn()} onDeleteProcess={vi.fn()} onRenameFlow={vi.fn()} onRenameProcess={vi.fn()} onUpdateFlowEndpoints={vi.fn()} process={processes[0]} processes={processes} />);
 
     const inspector = screen.getByLabelText("Process / Data Flow inspector");
     expect(inspector.textContent).toContain("Code refs: 1");

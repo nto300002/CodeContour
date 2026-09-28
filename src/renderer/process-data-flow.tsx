@@ -62,21 +62,30 @@ export function ProcessDataFlowCanvas({ feature, processes, flows, selectedProce
   </section>;
 }
 
-export function ProcessDataFlowInspector({ feature, process, flow, processes, onRenameProcess, onDeleteProcess, onRenameFlow, onDeleteFlow, onAddEvidence }: {
-  feature?: WorkspaceEntitySelection; process?: FlowProcess; flow?: FlowData; processes: readonly FlowProcess[]; onRenameProcess: (name: string) => void; onDeleteProcess: () => void; onRenameFlow: (name: string) => void; onDeleteFlow: () => void; onAddEvidence: (name: string) => void;
+export function ProcessDataFlowInspector({ feature, process, flow, processes, onRenameProcess, onDeleteProcess, onRenameFlow, onUpdateFlowEndpoints, onDeleteFlow, onAddEvidence }: {
+  feature?: WorkspaceEntitySelection; process?: FlowProcess; flow?: FlowData; processes: readonly FlowProcess[]; onRenameProcess: (name: string) => void; onDeleteProcess: () => void; onRenameFlow: (name: string) => void; onUpdateFlowEndpoints: (input: { fromProcessId: string; toProcessId: string }) => void; onDeleteFlow: () => void; onAddEvidence: (name: string) => void;
 }) {
   const [processName, setProcessName] = useState(process?.name ?? "");
   const [flowLabel, setFlowLabel] = useState(flow?.label ?? "");
+  const [fromProcessId, setFromProcessId] = useState(flow?.fromProcessId ?? "");
+  const [toProcessId, setToProcessId] = useState(flow?.toProcessId ?? "");
   const [evidenceName, setEvidenceName] = useState("");
   useEffect(() => setProcessName(process?.name ?? ""), [process?.id, process?.name]);
   useEffect(() => setFlowLabel(flow?.label ?? ""), [flow?.id, flow?.label]);
+  useEffect(() => setFromProcessId(flow?.fromProcessId ?? ""), [flow?.id, flow?.fromProcessId]);
+  useEffect(() => setToProcessId(flow?.toProcessId ?? ""), [flow?.id, flow?.toProcessId]);
   if (!feature) return <section aria-label="Process / Data Flow inspector"><p>No Feature selected.</p></section>;
+  const featureProcesses = processes.filter((candidate) => candidate.featureId === feature.id);
+  const canUpdateFlowEndpoints = fromProcessId !== "" && toProcessId !== "" && fromProcessId !== toProcessId;
   return <section aria-label="Process / Data Flow inspector"><p aria-label="Selected Feature">Selected Feature: {feature.label}</p>
     {!process && !flow && <p>No Process or Data Flow selected.</p>}
     {process && <><h2>{process.name}</h2><p>Code refs: {process.codeRefCount}</p><p>Inputs: {process.inputs.join(", ") || "None"}</p><p>Outputs: {process.outputs.join(", ") || "None"}</p>
       <label>Edit process name<input aria-label="Edit process name" onChange={(event) => setProcessName(event.target.value)} value={processName} /></label><button disabled={!processName.trim()} onClick={() => onRenameProcess(processName)} type="button">Save process name</button><button onClick={onDeleteProcess} type="button">Delete process</button></>}
     {flow && <><h2>{flow.label}</h2><p>Verification: {flow.verification}</p><p>Freshness: {flow.freshness}</p>{flow.evidence.map((evidence, index) => <p key={`${evidence.name}-${index}`}>Evidence: {evidence.name}{evidence.relativePath ? ` (${evidence.relativePath})` : ""}</p>)}
       <label>Edit data flow label<input aria-label="Edit data flow label" onChange={(event) => setFlowLabel(event.target.value)} value={flowLabel} /></label><button disabled={!flowLabel.trim()} onClick={() => onRenameFlow(flowLabel)} type="button">Save data flow label</button><button onClick={onDeleteFlow} type="button">Delete data flow</button>
+      <label>Edit from process<select aria-label="Edit from process" onChange={(event) => setFromProcessId(event.target.value)} value={fromProcessId}>{featureProcesses.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label>
+      <label>Edit to process<select aria-label="Edit to process" onChange={(event) => setToProcessId(event.target.value)} value={toProcessId}>{featureProcesses.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label>
+      <button disabled={!canUpdateFlowEndpoints} onClick={() => onUpdateFlowEndpoints({ fromProcessId, toProcessId })} type="button">Save data flow endpoints</button>
       <label>Evidence symbol<input aria-label="Evidence symbol" onChange={(event) => setEvidenceName(event.target.value)} value={evidenceName} /></label><button disabled={!evidenceName.trim()} onClick={() => { onAddEvidence(evidenceName); setEvidenceName(""); }} type="button">Add evidence</button></>}
   </section>;
 }
