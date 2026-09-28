@@ -9,11 +9,11 @@ describe("Workspace view integration", () => {
   it("keeps the Project Context and Selection while switching Views", () => {
     render(<CodeContourApp />);
     fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
-    fireEvent.click(screen.getByRole("button", { name: "Select Authentication feature" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Authentication" }));
+    fireEvent.click(screen.getByRole("button", { name: "Process / Data Flow" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Login process" }));
     fireEvent.click(screen.getByRole("button", { name: "Select validateToken symbol" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Process / Data Flow" }));
     expect(screen.getByRole("heading", { name: "Process / Data Flow" })).not.toBeNull();
     expect(screen.getAllByText("Project: CodeContour sample")).toHaveLength(3);
     expect(screen.getAllByText("Feature: Authentication feature")).toHaveLength(3);

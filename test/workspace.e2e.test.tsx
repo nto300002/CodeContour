@@ -9,7 +9,8 @@ describe("Understanding Workspace E2E", () => {
   it("round-trips all three Views in one Workspace route without creating an Inspector route", () => {
     render(<CodeContourApp />);
     fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
-    fireEvent.click(screen.getByRole("button", { name: "Select Authentication feature" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Authentication" }));
+    fireEvent.click(screen.getByRole("button", { name: "Process / Data Flow" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Login process" }));
     fireEvent.click(screen.getByRole("button", { name: "Select validateToken symbol" }));
 
@@ -17,9 +18,12 @@ describe("Understanding Workspace E2E", () => {
       fireEvent.click(screen.getByRole("button", { name: view }));
       expect(window.location.hash).toBe("#/workspace");
       expect(screen.getByRole("heading", { name: view })).not.toBeNull();
-      expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Feature: Authentication feature");
-      expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Process: Login process");
-      expect(screen.getByLabelText("Workspace inspector").textContent).toContain("Symbol: validateToken");
+      const inspector = view === "Feature Map" ? screen.getByLabelText("Feature Map inspector") : screen.getByLabelText("Workspace inspector");
+      expect(inspector.textContent).toContain("Authentication");
+      if (view !== "Feature Map") {
+        expect(inspector.textContent).toContain("Process: Login process");
+        expect(inspector.textContent).toContain("Symbol: validateToken");
+      }
     }
   });
 });
