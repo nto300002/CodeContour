@@ -18,6 +18,20 @@ export interface InitialAnalysisProps {
   onOpenWorkspace: () => void;
 }
 
+export interface InitialAnalysisApi {
+  start(input: { projectId: string }): Promise<{ runId: string; status: "ANALYZING"; phase: string }>;
+  cancel(input: { runId: string }): Promise<{ status: "CANCELLED"; phase: string }>;
+}
+
+const unavailableApi: InitialAnalysisApi = {
+  start: async () => { throw new Error("Initial Analysis is unavailable outside the desktop application."); },
+  cancel: async () => { throw new Error("Initial Analysis is unavailable outside the desktop application."); },
+};
+
+export function desktopInitialAnalysisApi(): InitialAnalysisApi {
+  return window.codeContour?.initialAnalysis ?? unavailableApi;
+}
+
 const availableWorkspace = (status: InitialAnalysisState) => status === "READY" || status === "PARTIAL";
 const running = (status: InitialAnalysisState) => status === "PENDING" || status === "ANALYZING";
 

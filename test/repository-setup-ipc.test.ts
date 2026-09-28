@@ -8,7 +8,7 @@ const preloadPath = fileURLToPath(new URL("../preload.cjs", import.meta.url));
 describe("Repository Setup file picker boundary", () => {
   it("exposes only typed picker and validation capabilities through preload", async () => {
     const [main, preload] = await Promise.all([readFile(mainPath, "utf8"), readFile(preloadPath, "utf8")]);
-    for (const channel of ["repository-setup:pick-root", "repository-setup:pick-tsconfig", "repository-setup:validate"]) {
+    for (const channel of ["repository-setup:pick-root", "repository-setup:pick-tsconfig", "repository-setup:validate", "initial-analysis:start", "initial-analysis:cancel"]) {
       expect(main).toContain(`ipcMain.handle(\"${channel}\"`);
       expect(preload).toContain(`ipcRenderer.invoke(\"${channel}\"`);
     }

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import type { InitialAnalysisApi } from "./initial-analysis.js";
 
 export type RepositorySetupValidation =
   | { ok: true; language: "TypeScript"; estimatedFileCount: number; tsconfigPath: string }
@@ -11,7 +12,7 @@ export interface RepositorySetupApi {
 }
 
 declare global {
-  interface Window { codeContour?: { repositorySetup: RepositorySetupApi }; }
+  interface Window { codeContour?: { repositorySetup?: RepositorySetupApi; initialAnalysis?: InitialAnalysisApi }; }
 }
 
 const unavailableApi: RepositorySetupApi = {

@@ -8,6 +8,8 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   const senderIsTrusted = (event) => event.senderFrame && event.senderFrame.url.startsWith("file:");
   const validPath = (value) => typeof value === "string" && value.length > 0;
   const loadRepositoryReader = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "repository-reader.js")).href);
+  const analysisRuns = new Map();
+  const loadInitialAnalysisRun = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "initial-analysis-run.js")).href);
 
   ipcMain.handle("repository-setup:pick-root", async (event) => {
     if (!senderIsTrusted(event)) throw new Error("Untrusted IPC sender.");
@@ -30,6 +32,22 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
       return { ok: false, fieldErrors: { [field]: result.error.message } };
     }
     return { ok: true, language: "TypeScript", estimatedFileCount: result.files.length, tsconfigPath: result.configFilePath };
+  });
+  ipcMain.handle("initial-analysis:start", async (event, input) => {
+    if (!senderIsTrusted(event) || !input || !validPath(input.projectId)) throw new Error("Invalid project.");
+    const { InitialAnalysisRunController } = await loadInitialAnalysisRun();
+    const runId = `initial:${input.projectId}:${Date.now()}`;
+    const controller = new InitialAnalysisRunController(`active:${input.projectId}`);
+    controller.start({ analysisRunId: runId, stagingSnapshotId: `staging:${runId}` });
+    analysisRuns.set(runId, controller);
+    return { runId, status: controller.status, phase: "Indexing source files" };
+  });
+  ipcMain.handle("initial-analysis:cancel", async (event, input) => {
+    if (!senderIsTrusted(event) || !input || !validPath(input.runId)) throw new Error("Invalid analysis run.");
+    const controller = analysisRuns.get(input.runId);
+    if (!controller) throw new Error("Analysis run is unavailable.");
+    controller.cancel();
+    return { status: controller.status, phase: "Cancelled by user" };
   });
 
   const createWindow = () => {

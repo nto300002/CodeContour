@@ -17,6 +17,8 @@ describe("Electron app shell boundary", () => {
     expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:pick-root\")");
     expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:pick-tsconfig\"");
     expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:validate\"");
+    expect(preload).toContain("ipcRenderer.invoke(\"initial-analysis:start\"");
+    expect(preload).toContain("ipcRenderer.invoke(\"initial-analysis:cancel\"");
     expect(preload).not.toContain("ipcRenderer.send");
     expect(preload).not.toContain("window.fs");
   });
