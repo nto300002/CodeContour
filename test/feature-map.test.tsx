@@ -30,4 +30,15 @@ describe("Feature Map node and edge presentation", () => {
     expect(screen.getByLabelText("Feature Map inspector").textContent).toContain("Authentication");
     expect(screen.getByLabelText("Feature Map inspector").textContent).toContain("Process count: 2");
   });
+
+  it("resets the edit value when the selected Feature changes", () => {
+    const onEdit = vi.fn();
+    const { rerender } = render(<FeatureMapInspector feature={features[0]} onArchive={() => undefined} onEdit={onEdit} onViewFlow={() => undefined} />);
+    fireEvent.change(screen.getByLabelText("Edit feature name"), { target: { value: "Renamed authentication" } });
+
+    rerender(<FeatureMapInspector feature={features[1]} onArchive={() => undefined} onEdit={onEdit} onViewFlow={() => undefined} />);
+    expect((screen.getByLabelText("Edit feature name") as HTMLInputElement).value).toBe("Profile");
+    fireEvent.click(screen.getByRole("button", { name: "Save feature name" }));
+    expect(onEdit).toHaveBeenCalledWith("Profile");
+  });
 });

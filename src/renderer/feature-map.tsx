@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "./status-states.js";
 
 export interface FeatureMapFeature { id: string; name: string; confirmation: "CANDIDATE" | "CONFIRMED"; lifecycle: "ACTIVE" | "ARCHIVED"; freshness: "CURRENT" | "PARTIALLY_STALE" | "STALE"; processCount: number; codeRefCount: number; explanationCount: number; }
@@ -24,6 +24,7 @@ export function FeatureMapCanvas({ features, relations, selectedFeatureId, onSel
 
 export function FeatureMapInspector({ feature, onEdit, onArchive, onViewFlow }: { feature?: FeatureMapFeature; onEdit: (name: string) => void; onArchive: () => void; onViewFlow: () => void }) {
   const [name, setName] = useState(feature?.name ?? "");
+  useEffect(() => setName(feature?.name ?? ""), [feature?.id, feature?.name]);
   if (!feature) return <section aria-label="Feature Map inspector"><p>No Feature selected.</p></section>;
   return <section aria-label="Feature Map inspector"><h2>{feature.name}</h2><p>Process count: {feature.processCount}</p><p>Code ref count: {feature.codeRefCount}</p><p>Explanation count: {feature.explanationCount}</p>
     <label>Edit feature name<input aria-label="Edit feature name" onChange={(event) => setName(event.target.value)} value={name} /></label><button disabled={!name.trim()} onClick={() => onEdit(name)} type="button">Save feature name</button>
