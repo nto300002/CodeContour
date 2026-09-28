@@ -7,14 +7,15 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "build:main": "tsc -p tsconfig.main.json",
     "measure:poc-0": "CODECONTOUR_MEASUREMENT_OUTPUT=docs/poc-0-issue-13-measurements.json vitest run test/analysis-measurement.test.ts",
     "measure:repository": "CODECONTOUR_REQUIRE_REAL_MEASUREMENT=1 vitest run test/real-repository-measurement.test.ts",
     "measure:executor": "tsc --noEmit false --outDir /private/tmp/codecontour-spike-dist && node scripts/prepare-spike-dist.mjs && CODECONTOUR_SPIKE_DIST=/private/tmp/codecontour-spike-dist node scripts/measure-analyzer-executors.mjs",
     "verify:executor-measurement": "node scripts/verify-executor-measurement.mjs",
     "measure:sqlite-driver": "CODECONTOUR_SQLITE_MEASUREMENT_OUTPUT=docs/adr-002-sqlite-driver-measurements.json vitest run test/sqlite-driver-measurement.test.ts",
     "build:renderer": "vite build",
-    "start": "npm run build:renderer && electron .",
-    "package:sqlite-spike": "npm run build:renderer && electron-forge package --platform=darwin --arch=arm64",
+    "start": "npm run build:main && npm run build:renderer && electron .",
+    "package:sqlite-spike": "npm run build:main && npm run build:renderer && electron-forge package --platform=darwin --arch=arm64",
     "smoke:sqlite-packaged": "node scripts/run-packaged-sqlite-smoke.mjs",
     "verify:sqlite-spike": "node scripts/verify-sqlite-spike.mjs"
   },

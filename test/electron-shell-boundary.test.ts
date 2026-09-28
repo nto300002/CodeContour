@@ -14,6 +14,10 @@ describe("Electron app shell boundary", () => {
     expect(main).toContain('sandbox: true');
     expect(main).toContain('dist", "renderer", "index.html');
     expect(preload).toContain("contextBridge.exposeInMainWorld");
-    expect(preload).not.toContain("ipcRenderer");
+    expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:pick-root\")");
+    expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:pick-tsconfig\"");
+    expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:validate\"");
+    expect(preload).not.toContain("ipcRenderer.send");
+    expect(preload).not.toContain("window.fs");
   });
 });
