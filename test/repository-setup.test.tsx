@@ -37,6 +37,27 @@ describe("Repository Setup form validation", () => {
     expect((screen.getByRole("button", { name: "Start initial analysis" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it.each([
+    ["Repository Root", "/work/project-b"],
+    ["tsconfig path", "tsconfig.next.json"],
+  ])("rejects a stale successful validation after %s changes", async (field, value) => {
+    let resolveValidation: (value: Awaited<ReturnType<RepositorySetupApi["validate"]>>) => void = () => undefined;
+    const api: RepositorySetupApi = {
+      ...validApi,
+      validate: vi.fn(() => new Promise<Awaited<ReturnType<RepositorySetupApi["validate"]>>>((resolve) => { resolveValidation = resolve; })),
+    };
+    render(<RepositorySetup api={api} onCancel={() => undefined} onStartAnalysis={() => undefined} />);
+    fireEvent.change(screen.getByLabelText("Repository Root"), { target: { value: "/work/project-a" } });
+    fireEvent.change(screen.getByLabelText("tsconfig path"), { target: { value: "tsconfig.json" } });
+    fireEvent.click(screen.getByRole("button", { name: "Validate configuration" }));
+    fireEvent.change(screen.getByLabelText(field), { target: { value } });
+    resolveValidation({ ok: true, language: "TypeScript", estimatedFileCount: 12, tsconfigPath: "tsconfig.json" });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect((screen.getByRole("button", { name: "Start initial analysis" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByLabelText("Validation summary")).toBeNull();
+  });
+
   it("cancels without submitting form values", () => {
     const onCancel = vi.fn();
     const onStartAnalysis = vi.fn();
