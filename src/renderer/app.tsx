@@ -5,6 +5,7 @@ import { desktopInitialAnalysisApi, InitialAnalysis, type InitialAnalysisApi } f
 import { desktopRepositorySetupApi, RepositorySetup, type RepositorySetupApi } from "./repository-setup.js";
 import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
 import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus, type StatusBadgeValue } from "./status-states.js";
+import { WorkspaceCanvas, WorkspaceInspector, WorkspaceNavigation, type WorkspaceSelection } from "./workspace.js";
 
 const defaultProjects: readonly HubProject[] = [{
   id: "sample-project",
@@ -35,7 +36,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const [analysisPhase, setAnalysisPhase] = useState("Waiting to start");
   const [analysisRun, setAnalysisRun] = useState<{ id: string; projectId: string }>();
   const analysisStartRequestId = useRef(0);
-  const [selection, setSelection] = useState<string | null>(null);
+  const [selection, setSelection] = useState<WorkspaceSelection | null>(null);
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
 
   const navigate = (target: AppRoute) => {
@@ -60,7 +61,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
       setAnalysisPhase(hubProject.analysisStatus === "PENDING" ? "Waiting to start" : "Analysis state restored");
     }
     setView(restoreSelection ? hubProject.savedSelection?.view ?? "feature-map" : "feature-map");
-    setSelection(restoreSelection ? hubProject.savedSelection?.featureName ?? null : null);
+    setSelection(restoreSelection && hubProject.savedSelection?.featureName ? { kind: "feature", label: hubProject.savedSelection.featureName } : null);
     setRoute(resolved.route);
     setReturnPath(resolved.returnPath);
     window.location.hash = routeHash(resolved.route);
@@ -93,6 +94,8 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     const resolved = resolveRoute({ screen: "initial-analysis" }, { projectId: selectedProject.id, repositoryConnected: true });
     setProject(selectedProject);
     setRepositoryConnected(true);
+    setView("feature-map");
+    setSelection(null);
     setRoute(resolved.route);
     setReturnPath(resolved.returnPath);
     window.location.hash = routeHash(resolved.route);
@@ -140,8 +143,18 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     window.location.hash = routeHash(restored);
   };
 
+  const workspaceContext = project ? { project, view, selection } : undefined;
+
   return (
-    <AppShell activeScreen={route.screen} activeView={view} onScreenChange={(screen: ScreenId) => navigate({ screen })} onViewChange={setView} project={project}>
+    <AppShell
+      activeScreen={route.screen}
+      activeView={view}
+      onScreenChange={(screen: ScreenId) => navigate({ screen })}
+      onViewChange={setView}
+      project={project}
+      workspaceInspector={route.screen === "workspace" && workspaceContext ? <WorkspaceInspector context={workspaceContext} /> : undefined}
+      workspaceNavigation={route.screen === "workspace" && workspaceContext ? <WorkspaceNavigation context={workspaceContext} /> : undefined}
+    >
       {route.screen === "project-hub" && (
         <ProjectHub onContinue={(hubProject) => openProject(hubProject, true)} onOpen={(hubProject) => openProject(hubProject, false)} onRegister={registerProject} projects={initialProjects} />
       )}
@@ -156,10 +169,9 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
       />}
       {route.screen === "workspace" && (
         <section>
-          <h1>{view === "feature-map" ? "Feature Map" : view === "process-data-flow" ? "Process / Data Flow" : "Code Viewer"}</h1>
-          <button onClick={() => setSelection("Authentication feature")} type="button">Select Authentication feature</button>
+          {workspaceContext && <WorkspaceCanvas context={workspaceContext} onSelect={setSelection} />}
           {selection
-            ? <p>{`Selected: ${selection}`}</p>
+            ? <p>{`Selected: ${selection.label}`}</p>
             : <EmptyState action="Select a feature to inspect its analysis state." description="No feature is selected in this Workspace." title="No feature selected" />}
           <StatusBadge status={selectionBadge} />
           {analysisStatus === "PARTIAL"
