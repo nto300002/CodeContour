@@ -39,4 +39,16 @@ describe("Feature Map E2E", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open Project A" }));
     expect(screen.getByRole("article", { name: "Feature: A only" })).not.toBeNull();
   });
+
+  it("allocates a new ID when a persisted manual Feature already uses the first ID", () => {
+    render(<CodeContourApp initialFeatureMapFeatures={[{ id: "feature:manual-1", name: "Existing", confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 0, codeRefCount: 0, explanationCount: 0 }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open CodeContour sample" }));
+    fireEvent.change(screen.getByLabelText("Feature name"), { target: { value: "Created" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create feature" }));
+    fireEvent.change(screen.getByLabelText("Edit feature name"), { target: { value: "Renamed" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save feature name" }));
+
+    expect(screen.getByRole("article", { name: "Feature: Existing" })).not.toBeNull();
+    expect(screen.getByRole("article", { name: "Feature: Renamed" })).not.toBeNull();
+  });
 });

@@ -32,6 +32,11 @@ export interface CodeContourAppProps {
 }
 
 const defaultFeatureMap: readonly FeatureMapFeature[] = [{ id: "feature:authentication", name: "Authentication", confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 1, codeRefCount: 2, explanationCount: 0 }];
+function nextManualFeatureId(features: readonly FeatureMapFeature[]): string {
+  let number = 1;
+  while (features.some((feature) => feature.id === `feature:manual-${number}`)) ++number;
+  return `feature:manual-${number}`;
+}
 export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects, repositorySetupApi = desktopRepositorySetupApi(), initialAnalysisApi = desktopInitialAnalysisApi(), initialFeatureMapFeatures = defaultFeatureMap, initialFeatureMapRelations = [], initialFeatureMapFeaturesByProject = {}, initialFeatureMapRelationsByProject = {} }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
@@ -46,7 +51,6 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
   const [featureMapFeaturesByProject, setFeatureMapFeaturesByProject] = useState<Readonly<Record<string, readonly FeatureMapFeature[]>>>(() => ({ "sample-project": initialFeatureMapFeatures, ...initialFeatureMapFeaturesByProject }));
   const featureMapRelationsByProject: Readonly<Record<string, readonly FeatureMapRelation[]>> = { "sample-project": initialFeatureMapRelations, ...initialFeatureMapRelationsByProject };
-  const featureNumber = useRef(0);
 
   const navigate = (target: AppRoute) => {
     const resolved = resolveRoute(target, { projectId: project?.id ?? null, repositoryConnected });
@@ -159,7 +163,7 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
   const featureMapRelations = project ? featureMapRelationsByProject[project.id] ?? [] : [];
   const selectedFeature = selection?.feature ? featureMapFeatures.find((feature) => feature.id === selection.feature!.id) : undefined;
   const selectFeature = (feature: FeatureMapFeature) => setSelection({ feature: { id: feature.id, label: feature.name } });
-  const createFeature = (name: string) => { const trimmed = name.trim(); if (!trimmed || !project) return; const feature: FeatureMapFeature = { id: `feature:manual-${++featureNumber.current}`, name: trimmed, confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 0, codeRefCount: 0, explanationCount: 0 }; const projectId = project.id; setFeatureMapFeaturesByProject((items) => ({ ...items, [projectId]: [...(items[projectId] ?? []), feature] })); selectFeature(feature); };
+  const createFeature = (name: string) => { const trimmed = name.trim(); if (!trimmed || !project) return; const feature: FeatureMapFeature = { id: nextManualFeatureId(featureMapFeatures), name: trimmed, confirmation: "CONFIRMED", lifecycle: "ACTIVE", freshness: "CURRENT", processCount: 0, codeRefCount: 0, explanationCount: 0 }; const projectId = project.id; setFeatureMapFeaturesByProject((items) => ({ ...items, [projectId]: [...(items[projectId] ?? []), feature] })); selectFeature(feature); };
   const updateSelectedFeature = (update: (feature: FeatureMapFeature) => FeatureMapFeature) => { if (!selectedFeature || !project) return; const next = update(selectedFeature); const projectId = project.id; setFeatureMapFeaturesByProject((items) => ({ ...items, [projectId]: (items[projectId] ?? []).map((feature) => feature.id === next.id ? next : feature) })); selectFeature(next); };
 
   return (
