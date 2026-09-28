@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell, type ProjectSelection, type ScreenId, type WorkspaceView } from "./app-shell.js";
 import { ProjectHub, type HubProject } from "./project-hub.js";
+import { desktopInitialAnalysisApi, InitialAnalysis, type InitialAnalysisApi } from "./initial-analysis.js";
 import { desktopRepositorySetupApi, RepositorySetup, type RepositorySetupApi } from "./repository-setup.js";
 import { completeReconnect, resolveHashRoute, resolveRoute, routeHash, type AppRoute } from "./routing.js";
 import { AnalysisStatePanel, EmptyState, StatusBadge, type AnalysisStatus, type StatusBadgeValue } from "./status-states.js";
@@ -21,15 +22,19 @@ export interface CodeContourAppProps {
   initialSelectionBadge?: StatusBadgeValue;
   initialProjects?: readonly HubProject[];
   repositorySetupApi?: RepositorySetupApi;
+  initialAnalysisApi?: InitialAnalysisApi;
 }
 
-export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects, repositorySetupApi = desktopRepositorySetupApi() }: CodeContourAppProps) {
+export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelectionBadge = "UNKNOWN", initialProjects = defaultProjects, repositorySetupApi = desktopRepositorySetupApi(), initialAnalysisApi = desktopInitialAnalysisApi() }: CodeContourAppProps) {
   const [project, setProject] = useState<ProjectSelection | null>(null);
   const [route, setRoute] = useState<AppRoute>(() => resolveHashRoute(window.location.hash, { projectId: null, repositoryConnected: true }).route);
   const [view, setView] = useState<WorkspaceView>("feature-map");
   const [repositoryConnected, setRepositoryConnected] = useState(true);
   const [returnPath, setReturnPath] = useState<AppRoute>();
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>(initialAnalysisStatus);
+  const [analysisPhase, setAnalysisPhase] = useState("Waiting to start");
+  const [analysisRun, setAnalysisRun] = useState<{ id: string; projectId: string }>();
+  const analysisStartRequestId = useRef(0);
   const [selection, setSelection] = useState<string | null>(null);
   const [selectionBadge] = useState<StatusBadgeValue>(initialSelectionBadge);
 
@@ -47,6 +52,13 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     const resolved = resolveRoute(target, { projectId: selectedProject.id, repositoryConnected: repositoryIsConnected });
     setProject(selectedProject);
     setRepositoryConnected(repositoryIsConnected);
+    // A background Run remains Main-owned, but must never control another Project's screen.
+    ++analysisStartRequestId.current;
+    setAnalysisRun(undefined);
+    if (!hubProject.hasActiveSnapshot) {
+      setAnalysisStatus(hubProject.analysisStatus);
+      setAnalysisPhase(hubProject.analysisStatus === "PENDING" ? "Waiting to start" : "Analysis state restored");
+    }
     setView(restoreSelection ? hubProject.savedSelection?.view ?? "feature-map" : "feature-map");
     setSelection(restoreSelection ? hubProject.savedSelection?.featureName ?? null : null);
     setRoute(resolved.route);
@@ -58,6 +70,23 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     navigate({ screen: "repository-setup" });
   };
 
+  const beginInitialAnalysis = (projectId: string) => {
+    const requestId = ++analysisStartRequestId.current;
+    setAnalysisStatus("PENDING");
+    setAnalysisPhase("Starting analysis");
+    setAnalysisRun(undefined);
+    void initialAnalysisApi.start({ projectId }).then((run) => {
+      if (requestId !== analysisStartRequestId.current) return;
+      setAnalysisRun({ id: run.runId, projectId });
+      setAnalysisStatus(run.status);
+      setAnalysisPhase(run.phase);
+    }).catch(() => {
+      if (requestId !== analysisStartRequestId.current) return;
+      setAnalysisStatus("FAILED");
+      setAnalysisPhase("Unable to start analysis");
+    });
+  };
+
   const startInitialAnalysis = ({ repositoryRoot }: { repositoryRoot: string }) => {
     const name = repositoryRoot.split("/").filter(Boolean).at(-1) ?? "Local repository";
     const selectedProject = { id: `setup:${repositoryRoot}`, name };
@@ -67,6 +96,17 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
     setRoute(resolved.route);
     setReturnPath(resolved.returnPath);
     window.location.hash = routeHash(resolved.route);
+    beginInitialAnalysis(selectedProject.id);
+  };
+
+  const cancelInitialAnalysis = () => {
+    if (!analysisRun || analysisRun.projectId !== project?.id) return;
+    const requestId = analysisStartRequestId.current;
+    void initialAnalysisApi.cancel({ runId: analysisRun.id, projectId: analysisRun.projectId }).then((result) => {
+      if (requestId !== analysisStartRequestId.current) return;
+      setAnalysisStatus(result.status);
+      setAnalysisPhase(result.phase);
+    });
   };
 
   useEffect(() => {
@@ -106,6 +146,14 @@ export function CodeContourApp({ initialAnalysisStatus = "READY", initialSelecti
         <ProjectHub onContinue={(hubProject) => openProject(hubProject, true)} onOpen={(hubProject) => openProject(hubProject, false)} onRegister={registerProject} projects={initialProjects} />
       )}
       {route.screen === "repository-setup" && <RepositorySetup api={repositorySetupApi} onCancel={() => navigate({ screen: "project-hub" })} onStartAnalysis={startInitialAnalysis} />}
+      {route.screen === "initial-analysis" && <InitialAnalysis
+        onBackground={() => navigate({ screen: "project-hub" })}
+        onCancel={cancelInitialAnalysis}
+        onOpenWorkspace={() => navigate({ screen: "workspace" })}
+        canCancel={analysisRun?.projectId === project?.id}
+        onRetry={() => { if (project) beginInitialAnalysis(project.id); }}
+        run={{ status: analysisStatus, phase: analysisPhase }}
+      />}
       {route.screen === "workspace" && (
         <section>
           <h1>{view === "feature-map" ? "Feature Map" : view === "process-data-flow" ? "Process / Data Flow" : "Code Viewer"}</h1>

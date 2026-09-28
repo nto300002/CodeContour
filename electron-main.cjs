@@ -1,6 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { join } = require("node:path");
 const { pathToFileURL } = require("node:url");
+const { registerInitialAnalysisIpcHandlers } = require("./initial-analysis-ipc.cjs");
 
 if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   require("./test/fixtures/sqlite-packaged-main.cjs");
@@ -8,6 +9,7 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   const senderIsTrusted = (event) => event.senderFrame && event.senderFrame.url.startsWith("file:");
   const validPath = (value) => typeof value === "string" && value.length > 0;
   const loadRepositoryReader = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "repository-reader.js")).href);
+  const loadInitialAnalysisRun = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "initial-analysis-run.js")).href);
 
   ipcMain.handle("repository-setup:pick-root", async (event) => {
     if (!senderIsTrusted(event)) throw new Error("Untrusted IPC sender.");
@@ -31,6 +33,7 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
     }
     return { ok: true, language: "TypeScript", estimatedFileCount: result.files.length, tsconfigPath: result.configFilePath };
   });
+  registerInitialAnalysisIpcHandlers({ ipcMain, senderIsTrusted, validPath, loadInitialAnalysisRun });
 
   const createWindow = () => {
     const window = new BrowserWindow({
