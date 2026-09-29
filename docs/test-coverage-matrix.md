@@ -1,6 +1,6 @@
 # MVP テスト網羅表
 
-[開発要件](development-requirements.md) の5層と E2E-01〜05を、テスト名と実行環境へ対応づける。テスト件数はコード網羅率を示さない。ここに記した基準値は2026-09-29に `codex/issue-63-test-coverage` の独立 Worktree で計測した値であり、各Commitの値は CI の `test-coverage` / `test-coverage-by-layer` Artifactを正とする。
+[開発要件](development-requirements.md) の5層と E2E-01〜05を、テスト名と実行環境へ対応づける。テスト件数はコード網羅率を示さない。下表は2026-09-29のコミット `49c216f` に対する [PR Gate](https://github.com/nto300002/CodeContour/actions/runs/36523793725) の `test-coverage-by-layer` Artifactの値。実行環境によって計測値が変わるため、各Commitの値はそのCI Artifactを正とする。
 
 ## 実行方法と基準値
 
@@ -16,10 +16,10 @@ Coverage対象は `src/**/*.{ts,tsx}` とRootの `*.cjs`。Test、Fixture、生�
 | 層 | 対象File | Statements | Branches |
 | --- | ---: | ---: | ---: |
 | Domain | 9 | 428 / 433 = 98.85% | 291 / 342 = 85.09% |
-| Analyzer | 8 | 658 / 703 = 93.60% | 446 / 525 = 84.95% |
+| Analyzer | 8 | 658 / 703 = 93.60% | 445 / 524 = 84.92% |
 | Persistence | 7 | 474 / 482 = 98.34% | 175 / 196 = 89.29% |
-| Main IPC / Architecture | 6 | 185 / 344 = 53.78% | 73 / 107 = 68.22% |
-| Renderer | 12 | 632 / 679 = 93.08% | 438 / 505 = 86.73% |
+| Main IPC / Architecture | 6 | 176 / 325 = 54.15% | 71 / 105 = 67.62% |
+| Renderer | 12 | 632 / 676 = 93.49% | 438 / 505 = 86.73% |
 
 Main IPC の低い数値には、Production の `electron-main.cjs` と `preload.cjs` が Vitest Process 内で実行されないことが含まれる。Native Smoke はこれらの実境界を通すが、上の数値に加算しない。
 
