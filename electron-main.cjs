@@ -12,6 +12,7 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   const loadRepositoryReader = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "repository-reader.js")).href);
   const loadInitialAnalysisRun = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "initial-analysis-run.js")).href);
   const loadProjectModelRuntime = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "main-project-model-runtime.js")).href);
+  const loadSymbolIndex = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "symbol-index.js")).href);
   let projectModelRuntime;
   const projectModel = async () => {
     if (!projectModelRuntime) {
@@ -43,11 +44,24 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
     }
     return { ok: true, language: "TypeScript", estimatedFileCount: result.files.length, tsconfigPath: result.configFilePath };
   });
-  registerInitialAnalysisIpcHandlers({ ipcMain, senderIsTrusted, validPath, loadInitialAnalysisRun });
+  registerInitialAnalysisIpcHandlers({
+    ipcMain, senderIsTrusted, validPath, loadInitialAnalysisRun,
+    getRepositoryConfiguration: async (projectId) => (await projectModel()).repositoryConfigurationFor(projectId),
+    analyze: async (input) => (await loadSymbolIndex()).createSymbolIndex(input),
+    beginRun: async (projectId, runId, stagingId) => (await projectModel()).beginAnalysisRun(projectId, runId, stagingId),
+    saveBatch: async (batch) => (await projectModel()).saveAnalysisBatch(batch),
+    finishRun: async (projectId, runId) => (await projectModel()).finishAnalysisRun(projectId, runId),
+    failRun: async (projectId, runId) => (await projectModel()).failAnalysisRun(projectId, runId),
+    cancelRun: async (projectId, runId) => (await projectModel()).cancelAnalysisRun(projectId, runId),
+    setSymbols: async (projectId, symbols) => (await projectModel()).setCanonicalSymbols(projectId, symbols),
+  });
   registerProjectModelIpcHandlers({
     ipcMain, senderIsTrusted, validId: validPath,
     loadCommands: async (projectId) => (await projectModel()).commands(projectId),
     resolveProjectSymbol: async (projectId, symbolId) => (await projectModel()).resolveProjectSymbol(projectId, symbolId),
+    configureRepository: async (projectId, repositoryRoot, tsconfigPath) => (await projectModel()).configureRepository(projectId, repositoryRoot, tsconfigPath),
+    listProjects: async () => (await projectModel()).listProjects(),
+    listSymbols: async (projectId) => (await projectModel()).canonicalSymbols(projectId).map((symbol) => ({ ...symbol, targetScope: "PROJECT" })),
   });
 
   const createWindow = () => {

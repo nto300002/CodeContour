@@ -21,13 +21,22 @@ export class ProcessService {
     if (!name) return { ok: false, error: { code: "PROCESS_NAME_REQUIRED" } };
     const firstStepName = input.firstStepName.trim();
     if (!firstStepName) return { ok: false, error: { code: "STEP_NAME_REQUIRED" } };
-    const model = await this.store.load();
-    if (!model.features.some((feature) => feature.id === input.featureId)) return { ok: false, error: { code: "FEATURE_NOT_FOUND" } };
     const process: Process = {
       id: this.createId(), featureId: input.featureId, name, origin: "USER", confirmation: "CONFIRMED",
       steps: [{ id: this.createId(), name: firstStepName, order: 0 }],
     };
-    await this.store.save({ ...model, processes: [...model.processes, process] });
+    if (this.store.update) {
+      let featureExists = false;
+      await this.store.update((model) => {
+        featureExists = model.features.some((feature) => feature.id === input.featureId);
+        return featureExists ? { ...model, processes: [...model.processes, process] } : model;
+      });
+      if (!featureExists) return { ok: false, error: { code: "FEATURE_NOT_FOUND" } };
+    } else {
+      const model = await this.store.load();
+      if (!model.features.some((feature) => feature.id === input.featureId)) return { ok: false, error: { code: "FEATURE_NOT_FOUND" } };
+      await this.store.save({ ...model, processes: [...model.processes, process] });
+    }
     return { ok: true, process };
   }
 }

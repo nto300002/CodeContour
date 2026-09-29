@@ -37,10 +37,21 @@ export class SqliteSnapshotService {
     this.driver.applyMigrations(migrations);
   }
 
-  createProject(projectId: string, activeSnapshotId: string): void {
+  failInterruptedRuns(): void {
+    this.driver.transaction(() => {
+      const runs = this.driver.all<{ id: string; project_id: string; staging_snapshot_id: string }>("SELECT id, project_id, staging_snapshot_id FROM analysis_run WHERE status = 'ANALYZING'");
+      for (const run of runs) {
+        this.driver.run("UPDATE analysis_run SET status = 'FAILED' WHERE id = ? AND status = 'ANALYZING'", run.id);
+        this.driver.run("DELETE FROM snapshot WHERE id = ?", run.staging_snapshot_id);
+        this.driver.run("UPDATE project SET current_run_id = NULL, current_staging_snapshot_id = NULL WHERE id = ? AND current_run_id = ?", run.project_id, run.id);
+      }
+    });
+  }
+
+  createProject(projectId: string, activeSnapshotId: string | null = null): void {
     this.driver.transaction(() => {
       this.driver.run("INSERT INTO project (id, active_snapshot_id) VALUES (?, ?)", projectId, activeSnapshotId);
-      this.driver.run("INSERT INTO snapshot (id, project_id) VALUES (?, ?)", activeSnapshotId, projectId);
+      if (activeSnapshotId) this.driver.run("INSERT INTO snapshot (id, project_id) VALUES (?, ?)", activeSnapshotId, projectId);
     });
   }
 

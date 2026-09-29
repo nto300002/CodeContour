@@ -21,8 +21,10 @@ export interface InitialAnalysisProps {
 }
 
 export interface InitialAnalysisApi {
-  start(input: { projectId: string }): Promise<{ runId: string; status: "ANALYZING"; phase: string }>;
+  start(input: { projectId: string; repositoryRoot?: string; tsconfigPath?: string }): Promise<{ runId: string; status: "ANALYZING"; phase: string }>;
   cancel(input: { runId: string; projectId: string }): Promise<{ status: "CANCELLED"; phase: string }>;
+  status?(input: { runId: string; projectId: string }): Promise<{ status: AnalysisStatus; phase: string; files?: number; symbols?: number }>;
+  current?(input: { projectId: string }): Promise<{ runId: string; status: AnalysisStatus; phase: string; files?: number; symbols?: number } | undefined>;
 }
 
 const unavailableApi: InitialAnalysisApi = {
@@ -51,6 +53,7 @@ export function InitialAnalysis({ run, canCancel, onCancel, onBackground, onRetr
       {run.status === "PARTIAL" && <p>Some analysis results are unavailable. Open only the available Workspace views.</p>}
       {running(run.status) && <>
         {!canCancel && <p role="status">Starting analysis…</p>}
+        {run.status === "PENDING" && run.phase === "Waiting to start" && <button onClick={onRetry} type="button">Start analysis</button>}
         <button disabled={!canCancel} onClick={onCancel} type="button">Cancel analysis</button>
         <button onClick={onBackground} type="button">Continue in background</button>
       </>}

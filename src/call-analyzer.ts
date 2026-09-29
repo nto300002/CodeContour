@@ -1,7 +1,6 @@
-import { realpathSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import ts from "typescript";
-import { loadTypeScriptProject, type RepositoryReaderErrorCode } from "./repository-reader.js";
+import { openApprovedTypeScriptProject } from "./approved-typescript-project.js";
+import type { RepositoryReaderErrorCode } from "./repository-reader.js";
 import { classifyResolution, type ResolutionReason, type ResolutionState } from "./relation-resolution.js";
 
 export interface CallSymbol {
@@ -25,49 +24,13 @@ export type CallResult =
   | { ok: true; calls: CallRelation[] }
   | { ok: false; error: { code: RepositoryReaderErrorCode; message: string } };
 
-function compilerPathToAbsolute(root: string, fileName: string): string {
-  const absolutePath = isAbsolute(fileName) ? fileName : resolve(root, fileName);
-  try { return realpathSync(absolutePath); } catch { return absolutePath; }
-}
-
-function pathInRoot(root: string, fileName: string): string | undefined {
-  const path = relative(root, compilerPathToAbsolute(root, fileName)).split(sep).join("/");
-  return path === ".." || path.startsWith("../") ? undefined : path;
-}
-
 export async function analyzeCalls(input: { repositoryRoot: string; tsconfigPath: string }): Promise<CallResult> {
-  const project = await loadTypeScriptProject(input);
-  if (!project.ok) return project;
-
-  const root = realpathSync(input.repositoryRoot);
-  const allowedFiles = new Set(project.files);
-  const rootNames = [...project.files, ...project.declarationFiles].map((file) => resolve(root, file));
-  const approvedFiles = new Set(rootNames.map((file) => compilerPathToAbsolute(root, file)));
-  const nodeModulesRoot = compilerPathToAbsolute(root, resolve(root, "node_modules"));
-  const typeScriptLibRoot = dirname(ts.getDefaultLibFilePath(project.compilerOptions));
-  const readable = (fileName: string): boolean => {
-    const canonicalFile = compilerPathToAbsolute(root, fileName);
-    return approvedFiles.has(canonicalFile) || (canonicalFile.endsWith(".d.ts") && (
-      canonicalFile.startsWith(`${nodeModulesRoot}${sep}`)
-      || canonicalFile.startsWith(`${typeScriptLibRoot}${sep}`)
-    ));
-  };
-
-  // This host is the security boundary for all Compiler API reads.
-  const host = ts.createCompilerHost(project.compilerOptions);
-  const fileExists = host.fileExists.bind(host);
-  const readFile = host.readFile.bind(host);
-  const getSourceFile = host.getSourceFile.bind(host);
-  host.fileExists = (fileName) => readable(fileName) && fileExists(fileName);
-  host.readFile = (fileName) => readable(fileName) ? readFile(fileName) : undefined;
-  host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) =>
-    readable(fileName) ? getSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile) : undefined;
-
-  const program = ts.createProgram({ rootNames, options: project.compilerOptions, host });
+  const approved = await openApprovedTypeScriptProject(input); if (!approved.ok) return approved;
+  const { project, program, host, applicationFiles: allowedFiles, toProjectPath } = approved;
   const checker = program.getTypeChecker();
   const calls: CallRelation[] = [];
   const identityOf = (declaration: ts.Declaration): CallSymbol | undefined => {
-    const relativePath = pathInRoot(root, declaration.getSourceFile().fileName);
+    const relativePath = toProjectPath(declaration.getSourceFile().fileName);
     if (!relativePath || !allowedFiles.has(relativePath)) return undefined;
     const name = (declaration as ts.Declaration & { name?: ts.DeclarationName }).name;
     const symbol = name ? checker.getSymbolAtLocation(name) : undefined;
@@ -79,7 +42,7 @@ export async function analyzeCalls(input: { repositoryRoot: string; tsconfigPath
   };
 
   for (const source of program.getSourceFiles()) {
-    const sourcePath = pathInRoot(root, source.fileName);
+    const sourcePath = toProjectPath(source.fileName);
     if (!sourcePath || !allowedFiles.has(sourcePath)) continue;
     const fileScope: CallSymbol = { qualifiedName: "<file>", relativePath: sourcePath, range: { start: 0, end: source.getEnd() } };
     const visit = (node: ts.Node): void => {
@@ -108,10 +71,8 @@ export async function analyzeCalls(input: { repositoryRoot: string; tsconfigPath
         const declaration = resolved?.declarations?.[0];
         const callee = declaration && identityOf(declaration);
         const resolvedSignature = checker.getResolvedSignature(node);
-        const declarationPath = declaration && compilerPathToAbsolute(root, declaration.getSourceFile().fileName);
-        const externalCallee = declarationPath !== undefined
-          && declarationPath.endsWith(".d.ts")
-          && readable(declarationPath);
+        const declarationPath = declaration && declaration.getSourceFile().fileName;
+        const externalCallee = declarationPath !== undefined && declarationPath.endsWith(".d.ts") && !allowedFiles.has(toProjectPath(declarationPath) ?? "");
         if (resolved && resolvedSignature?.declaration && (callee || externalCallee)) {
           const interfaceMember = declaration !== undefined && ts.isMethodSignature(declaration) && ts.isInterfaceDeclaration(declaration.parent);
           const classification = interfaceMember
@@ -124,8 +85,8 @@ export async function analyzeCalls(input: { repositoryRoot: string; tsconfigPath
           const moduleSpecifier = importDeclaration && ts.isImportDeclaration(importDeclaration) && ts.isStringLiteral(importDeclaration.moduleSpecifier)
             ? importDeclaration.moduleSpecifier : undefined;
           const moduleResolution = moduleSpecifier && ts.resolveModuleName(moduleSpecifier.text, source.fileName, project.compilerOptions, host).resolvedModule;
-          const modulePath = moduleResolution && compilerPathToAbsolute(root, moduleResolution.resolvedFileName);
-          const moduleIsProject = modulePath !== undefined && allowedFiles.has(pathInRoot(root, modulePath) ?? "");
+          const modulePath = moduleResolution && toProjectPath(moduleResolution.resolvedFileName);
+          const moduleIsProject = modulePath !== undefined && allowedFiles.has(modulePath);
           if (moduleSpecifier && moduleResolution && !moduleIsProject) {
             calls.push({ type: "CALLS", targetScope: "EXTERNAL", caller, evidenceLocation, ...classifyResolution({ unknownReason: "MISSING_EXPORT" }) });
           } else if (symbol?.flags && (symbol.flags & ts.SymbolFlags.Alias)) {

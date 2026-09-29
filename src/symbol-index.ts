@@ -1,8 +1,6 @@
-import { resolve, relative, sep } from "node:path";
-import { dirname } from "node:path";
-import { realpathSync } from "node:fs";
 import ts from "typescript";
-import { loadTypeScriptProject, type RepositoryReaderErrorCode } from "./repository-reader.js";
+import { openApprovedTypeScriptProject } from "./approved-typescript-project.js";
+import type { RepositoryReaderErrorCode } from "./repository-reader.js";
 
 export type SymbolKind = "FUNCTION" | "CLASS" | "METHOD" | "INTERFACE" | "TYPE_ALIAS" | "VARIABLE";
 export interface AnalyzerSymbol { id: string; kind: SymbolKind; name: string; qualifiedName: string; relativePath: string; range: { start: number; end: number }; signature: string; }
@@ -32,38 +30,13 @@ function signatureOf(node: ts.Node, checker: ts.TypeChecker): string {
 }
 
 export async function createSymbolIndex(input: SymbolIndexInput): Promise<SymbolIndexResult> {
-  const project = await loadTypeScriptProject(input);
-  if (!project.ok) return project;
-  const rootNames = [...project.files, ...project.declarationFiles].map((file) => resolve(input.repositoryRoot, file));
-  const indexedFiles = new Set(project.files);
-  const canonicalPath = (fileName: string) => { try { return realpathSync(fileName); } catch { return undefined; } };
-  const approvedFiles = new Set(rootNames.map(canonicalPath).filter((file): file is string => file !== undefined));
-  const repositoryNodeModules = canonicalPath(resolve(input.repositoryRoot, "node_modules"));
-  const typeScriptLibDirectory = dirname(ts.getDefaultLibFilePath(project.compilerOptions));
-  const compilerHost = ts.createCompilerHost(project.compilerOptions);
-  const originalReadFile = compilerHost.readFile.bind(compilerHost);
-  const originalFileExists = compilerHost.fileExists.bind(compilerHost);
-  const originalGetSourceFile = compilerHost.getSourceFile.bind(compilerHost);
-  // Source implementation files must have passed Repository Reader policy.  External
-  // declaration files are the only dependency files the compiler may read for typing.
-  const isReadableByCompiler = (fileName: string) => {
-    const canonicalFile = canonicalPath(fileName);
-    if (!canonicalFile) return false;
-    if (approvedFiles.has(canonicalFile)) return true;
-    if (!canonicalFile.endsWith(".d.ts")) return false;
-    const isInDirectory = (directory: string | undefined) => directory !== undefined && (canonicalFile === directory || canonicalFile.startsWith(`${directory}${sep}`));
-    return isInDirectory(repositoryNodeModules) || isInDirectory(typeScriptLibDirectory);
-  };
-  compilerHost.fileExists = (fileName) => isReadableByCompiler(fileName) && originalFileExists(fileName);
-  compilerHost.readFile = (fileName) => isReadableByCompiler(fileName) ? originalReadFile(fileName) : undefined;
-  compilerHost.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => isReadableByCompiler(fileName)
-    ? originalGetSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile)
-    : undefined;
-  const program = ts.createProgram({ rootNames, options: project.compilerOptions, host: compilerHost });
+  const approved = await openApprovedTypeScriptProject(input);
+  if (!approved.ok) return approved;
+  const { program, applicationFiles: indexedFiles, toProjectPath } = approved;
   const checker = program.getTypeChecker(); const symbols: AnalyzerSymbol[] = []; const filesWithParseErrors: string[] = [];
   for (const sourceFile of program.getSourceFiles()) {
-    const absolute = resolve(sourceFile.fileName); const root = resolve(input.repositoryRoot);
-    const path = relative(root, absolute).split(sep).join("/");
+    const path = toProjectPath(sourceFile.fileName);
+    if (!path) continue;
     if (!indexedFiles.has(path)) continue;
     const parseDiagnostics = (sourceFile as unknown as { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics;
     if (parseDiagnostics.length) { filesWithParseErrors.push(path); continue; }

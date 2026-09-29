@@ -11,9 +11,11 @@ const domainMigration: SqliteMigration = { version: 2, sql: `
   CREATE TABLE data_flow_evidence (data_flow_id TEXT NOT NULL REFERENCES data_flow(id) ON DELETE CASCADE, symbol_id TEXT NOT NULL, process_id TEXT NOT NULL REFERENCES process(id), name TEXT NOT NULL, kind TEXT NOT NULL, qualified_name TEXT NOT NULL, relative_path TEXT NOT NULL, range_start INTEGER NOT NULL, range_end INTEGER NOT NULL, PRIMARY KEY (data_flow_id, symbol_id));
   CREATE TABLE json_user_model_migration (project_id TEXT PRIMARY KEY REFERENCES project(id), applied_at TEXT NOT NULL);
 ` };
+const projectNameMigration: SqliteMigration = { version: 3, sql: "ALTER TABLE project_repository ADD COLUMN project_name TEXT NOT NULL DEFAULT '';" };
+const lifecycleAndOrderMigration: SqliteMigration = { version: 4, sql: "ALTER TABLE feature ADD COLUMN lifecycle TEXT NOT NULL DEFAULT 'ACTIVE'; ALTER TABLE process ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;" };
 
 type FeatureRow = { id: string; name: string; origin: "USER"; confirmation: "CONFIRMED" };
-type ProcessRow = FeatureRow & { feature_id: string };
+type ProcessRow = FeatureRow & { feature_id: string; sort_order: number };
 type StepRow = { id: string; process_id: string; name: string; sort_order: number };
 type LinkRow = { process_id: string; symbol_id: string; name: string; kind: string; qualified_name: string; relative_path: string; range_start: number; range_end: number };
 type EvidenceRow = LinkRow & { data_flow_id: string };
@@ -21,19 +23,34 @@ type FlowRow = { id: string; feature_id: string; from_process_id: string; to_pro
 
 /** Main-process-only SQLite adapter. JSON is deliberately not a production write target. */
 export class SqliteUserModelStore implements UserModelStore {
-  constructor(private readonly driver: SqliteDriver, private readonly projectId: string) { this.driver.applyMigrations([domainMigration]); }
+  constructor(private readonly driver: SqliteDriver, private readonly projectId: string) { this.driver.applyMigrations([domainMigration, projectNameMigration, lifecycleAndOrderMigration]); }
 
   async load(): Promise<UserModel> {
-    const features = this.driver.all<FeatureRow>("SELECT id, name, origin, confirmation FROM feature WHERE project_id = ? ORDER BY id", this.projectId);
-    const processes = this.driver.all<ProcessRow>("SELECT id, feature_id, name, origin, confirmation FROM process WHERE project_id = ? ORDER BY id", this.projectId);
+    return this.readModel();
+  }
+
+  async update(mutate: (current: UserModel) => UserModel): Promise<UserModel> {
+    return this.driver.transaction(() => {
+      const current = this.readModel();
+      const next = mutate(current);
+      if (next === current) return current;
+      this.assertModel(next);
+      this.writeModel(next);
+      return next;
+    });
+  }
+
+  private readModel(): UserModel {
+    const features = this.driver.all<FeatureRow & { lifecycle: "ACTIVE" | "ARCHIVED" }>("SELECT id, name, origin, confirmation, lifecycle FROM feature WHERE project_id = ? ORDER BY id", this.projectId);
+    const processes = this.driver.all<ProcessRow>("SELECT id, feature_id, name, origin, confirmation, sort_order FROM process WHERE project_id = ? ORDER BY sort_order, id", this.projectId);
     const steps = this.driver.all<StepRow>("SELECT s.id, s.process_id, s.name, s.sort_order FROM process_step s JOIN process p ON p.id = s.process_id WHERE p.project_id = ? ORDER BY s.sort_order, s.id", this.projectId);
     const processLinks = this.links("process_symbol_link", "process_id IN (SELECT id FROM process WHERE project_id = ?)");
     const flows = this.driver.all<FlowRow>("SELECT id, feature_id, from_process_id, to_process_id, label, verification FROM data_flow WHERE project_id = ? ORDER BY id", this.projectId);
     const evidence = this.driver.all<EvidenceRow>("SELECT data_flow_id, process_id, symbol_id, name, kind, qualified_name, relative_path, range_start, range_end FROM data_flow_evidence WHERE data_flow_id IN (SELECT id FROM data_flow WHERE project_id = ?)", this.projectId);
     return {
       version: 1, projectId: this.projectId,
-      features: features.map((row) => ({ id: row.id, name: row.name, origin: row.origin, confirmation: row.confirmation })),
-      processes: processes.map((row) => ({ id: row.id, featureId: row.feature_id, name: row.name, origin: row.origin, confirmation: row.confirmation, steps: steps.filter((step) => step.process_id === row.id).map((step) => ({ id: step.id, name: step.name, order: step.sort_order })) })),
+      features: features.map((row) => ({ id: row.id, name: row.name, origin: row.origin, confirmation: row.confirmation, ...(row.lifecycle === "ARCHIVED" ? { lifecycle: "ARCHIVED" as const } : {}) })),
+      processes: processes.map((row) => ({ id: row.id, featureId: row.feature_id, name: row.name, origin: row.origin, confirmation: row.confirmation, order: row.sort_order, steps: steps.filter((step) => step.process_id === row.id).map((step) => ({ id: step.id, name: step.name, order: step.sort_order })) })),
       processSymbolLinks: processLinks,
       dataFlows: flows.map((row) => ({ id: row.id, featureId: row.feature_id, fromProcessId: row.from_process_id, toProcessId: row.to_process_id, label: row.label, verification: row.verification, evidence: evidence.filter((link) => link.data_flow_id === row.id).map((link) => this.linkFromRow(link)) })),
     };
@@ -68,9 +85,9 @@ export class SqliteUserModelStore implements UserModelStore {
     this.driver.run("DELETE FROM process_step WHERE process_id IN (SELECT id FROM process WHERE project_id = ?)", this.projectId);
     this.driver.run("DELETE FROM process WHERE project_id = ?", this.projectId);
     this.driver.run("DELETE FROM feature WHERE project_id = ?", this.projectId);
-    for (const feature of model.features) this.driver.run("INSERT INTO feature (id, project_id, name, origin, confirmation) VALUES (?, ?, ?, ?, ?)", feature.id, this.projectId, feature.name, feature.origin, feature.confirmation);
-    for (const process of model.processes) {
-      this.driver.run("INSERT INTO process (id, project_id, feature_id, name, origin, confirmation) VALUES (?, ?, ?, ?, ?, ?)", process.id, this.projectId, process.featureId, process.name, process.origin, process.confirmation);
+    for (const feature of model.features) this.driver.run("INSERT INTO feature (id, project_id, name, origin, confirmation, lifecycle) VALUES (?, ?, ?, ?, ?, ?)", feature.id, this.projectId, feature.name, feature.origin, feature.confirmation, feature.lifecycle ?? "ACTIVE");
+    for (const [index, process] of model.processes.entries()) {
+      this.driver.run("INSERT INTO process (id, project_id, feature_id, name, origin, confirmation, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)", process.id, this.projectId, process.featureId, process.name, process.origin, process.confirmation, process.order ?? index);
       for (const step of process.steps) this.driver.run("INSERT INTO process_step (id, process_id, name, sort_order) VALUES (?, ?, ?, ?)", step.id, process.id, step.name, step.order);
     }
     for (const link of model.processSymbolLinks) this.insertLink("process_symbol_link", link);
@@ -87,6 +104,12 @@ export class SqliteUserModelStore implements UserModelStore {
     if (model.projectId !== this.projectId) throw new Error("User model belongs to another Project");
     const features = new Set(model.features.map((feature) => feature.id)); const processes = new Set(model.processes.map((process) => process.id));
     if (features.size !== model.features.length || processes.size !== model.processes.length) throw new Error("Duplicate domain id");
+    if (model.features.some((feature) => feature.lifecycle !== undefined && feature.lifecycle !== "ACTIVE" && feature.lifecycle !== "ARCHIVED")) throw new Error("Invalid Feature lifecycle");
+    if (model.processes.some((process) => process.order !== undefined && (!Number.isInteger(process.order) || process.order < 0))) throw new Error("Invalid Process order");
+    for (const featureId of features) {
+      const orders = model.processes.filter((process) => process.featureId === featureId && process.order !== undefined).map((process) => process.order!);
+      if (new Set(orders).size !== orders.length) throw new Error("Duplicate Process order");
+    }
     if (model.processes.some((process) => !features.has(process.featureId))) throw new Error("Process references an unknown Feature");
     if (model.processSymbolLinks.some((link) => !processes.has(link.processId))) throw new Error("Symbol Link references an unknown Process");
     if (model.dataFlows.some((flow) => !features.has(flow.featureId) || !processes.has(flow.fromProcessId) || !processes.has(flow.toProcessId))) throw new Error("Data Flow references an unknown domain object");
