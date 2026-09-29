@@ -13,6 +13,10 @@ describe("Electron app shell boundary", () => {
     expect(main).toContain('contextIsolation: true');
     expect(main).toContain('sandbox: true');
     expect(main).toContain('dist", "renderer", "index.html');
+    expect(main).toContain('createRuntimeCache, registerAppLifecycle');
+    expect(main).toContain('projectModelRuntimeCache = createRuntimeCache');
+    expect(main).toContain('closeRuntimes: () => projectModelRuntimeCache.close()');
+    expect(main).not.toContain('projectModelRuntime.close()');
     expect(preload).toContain("contextBridge.exposeInMainWorld");
     expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:pick-root\")");
     expect(preload).toContain("ipcRenderer.invoke(\"repository-setup:pick-tsconfig\"");

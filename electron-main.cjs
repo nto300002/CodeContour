@@ -3,6 +3,7 @@ const { join } = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { registerInitialAnalysisIpcHandlers } = require("./initial-analysis-ipc.cjs");
 const { registerProjectModelIpcHandlers } = require("./project-model-ipc.cjs");
+const { createRuntimeCache, registerAppLifecycle } = require("./electron-runtime-lifecycle.cjs");
 
 if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   require("./test/fixtures/sqlite-packaged-main.cjs");
@@ -13,13 +14,12 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
   const loadInitialAnalysisRun = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "initial-analysis-run.js")).href);
   const loadProjectModelRuntime = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "main-project-model-runtime.js")).href);
   const loadSymbolIndex = async () => import(pathToFileURL(join(__dirname, "dist", "main", "src", "symbol-index.js")).href);
-  let projectModelRuntime;
+  const projectModelRuntimeCache = createRuntimeCache(async () => {
+    const { MainProjectModelRuntime } = await loadProjectModelRuntime();
+    return new MainProjectModelRuntime(join(app.getPath("userData"), "codecontour.sqlite"));
+  });
   const projectModel = async () => {
-    if (!projectModelRuntime) {
-      const { MainProjectModelRuntime } = await loadProjectModelRuntime();
-      projectModelRuntime = new MainProjectModelRuntime(join(app.getPath("userData"), "codecontour.sqlite"));
-    }
-    return projectModelRuntime;
+    return projectModelRuntimeCache.get();
   };
 
   ipcMain.handle("repository-setup:pick-root", async (event) => {
@@ -80,13 +80,11 @@ if (process.env.CODECONTOUR_SQLITE_DRIVER) {
 
   app.whenReady().then(() => {
     createWindow();
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    registerAppLifecycle({
+      app,
+      BrowserWindow,
+      createWindow,
+      closeRuntimes: () => projectModelRuntimeCache.close(),
     });
-  });
-
-  app.on("window-all-closed", () => {
-    if (projectModelRuntime) projectModelRuntime.close();
-    if (process.platform !== "darwin") app.quit();
   });
 }
