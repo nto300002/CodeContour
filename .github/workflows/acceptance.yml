@@ -1,0 +1,27 @@
+name: Main acceptance
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-e2e:
+    name: UI E2E and real Electron smoke
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:main
+      - run: npm run build:renderer
+      - run: npm run test:e2e:ui
+      - run: npm run smoke:electron-app

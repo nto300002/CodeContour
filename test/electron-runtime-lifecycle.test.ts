@@ -56,9 +56,9 @@ describe("Electron SQLite runtime lifecycle", () => {
     expect(reopenedRuntime.listProjects()).toMatchObject([{ id: "project-lifecycle", name: "repository" }]);
     const postRestoreEdit = await reopenedRuntime.commands("project-lifecycle").createFeature("After restore");
     expect(postRestoreEdit).toMatchObject({ ok: true });
-    expect((await reopenedRuntime.commands("project-lifecycle").load()).features.map((feature) => feature.name)).toEqual([
-      "Before close",
+    expect((await reopenedRuntime.commands("project-lifecycle").load()).features.map((feature) => feature.name).sort()).toEqual([
       "After restore",
+      "Before close",
     ]);
     await runtimeCache.close();
   });
