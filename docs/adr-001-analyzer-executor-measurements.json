@@ -1,0 +1,102 @@
+{
+  "generatedAt": "2026-09-24T04:24:40.222Z",
+  "status": "COMPLETE",
+  "environment": {
+    "platform": "darwin",
+    "release": "23.6.0",
+    "arch": "arm64",
+    "node": "v24.20.0",
+    "electronBinary": "/Users/runner/work/CodeContour/CodeContour/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+    "electronPreflight": {
+      "ok": true,
+      "candidate": "ELECTRON_RUNTIME_PREFLIGHT",
+      "command": "/Users/runner/work/CodeContour/CodeContour/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "cwd": "/Users/runner/work/CodeContour/CodeContour",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "v44.4.3\n",
+      "stderr": "",
+      "elapsedMs": 993.6
+    }
+  },
+  "candidates": {
+    "small": {
+      "workerThread": {
+        "ok": true,
+        "candidate": "WORKER_THREAD",
+        "command": "node",
+        "cwd": "/Users/runner/work/CodeContour/CodeContour",
+        "exitCode": 0,
+        "signal": null,
+        "stdout": "{\"type\":\"RESULT\",\"ir\":{\"files\":10,\"declarations\":1200},\"analysisTimeMs\":64.45,\"maxRssBytes\":138526720,\"messageBytes\":44621}\n",
+        "stderr": "",
+        "elapsedMs": 558.3,
+        "result": { "type": "RESULT", "ir": { "files": 10, "declarations": 1200 }, "analysisTimeMs": 64.45, "maxRssBytes": 138526720, "messageBytes": 44621, "wallTimeMs": 558.3, "uiResponsiveness": { "timerTicks": 44, "maxDelayMs": 9.333541999999852 } }
+      },
+      "utilityProcess": {
+        "ok": true,
+        "candidate": "UTILITY_PROCESS",
+        "command": "/Users/runner/work/CodeContour/CodeContour/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+        "cwd": "/Users/runner/work/CodeContour/CodeContour",
+        "exitCode": 0,
+        "signal": null,
+        "stdout": "{\"type\":\"RESULT\",\"ir\":{\"files\":10,\"declarations\":1200},\"analysisTimeMs\":72.36,\"maxRssBytes\":113885184,\"messageBytes\":44621}\n",
+        "stderr": "",
+        "elapsedMs": 1565.45,
+        "result": { "type": "RESULT", "ir": { "files": 10, "declarations": 1200 }, "analysisTimeMs": 72.36, "maxRssBytes": 113885184, "messageBytes": 44621, "wallTimeMs": 1565.45, "uiResponsiveness": { "timerTicks": 121, "maxDelayMs": 61.855250000000524 } }
+      },
+      "irEqual": true
+    },
+    "medium": {
+      "workerThread": {
+        "ok": true,
+        "candidate": "WORKER_THREAD",
+        "command": "node",
+        "cwd": "/Users/runner/work/CodeContour/CodeContour",
+        "exitCode": 0,
+        "signal": null,
+        "stdout": "{\"type\":\"RESULT\",\"ir\":{\"files\":100,\"declarations\":12000},\"analysisTimeMs\":242.82,\"maxRssBytes\":177324032,\"messageBytes\":456911}\n",
+        "stderr": "",
+        "elapsedMs": 616.53,
+        "result": { "type": "RESULT", "ir": { "files": 100, "declarations": 12000 }, "analysisTimeMs": 242.82, "maxRssBytes": 177324032, "messageBytes": 456911, "wallTimeMs": 616.53, "uiResponsiveness": { "timerTicks": 49, "maxDelayMs": 10.78387500000008 } }
+      },
+      "utilityProcess": {
+        "ok": true,
+        "candidate": "UTILITY_PROCESS",
+        "command": "/Users/runner/work/CodeContour/CodeContour/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+        "cwd": "/Users/runner/work/CodeContour/CodeContour",
+        "exitCode": 0,
+        "signal": null,
+        "stdout": "{\"type\":\"RESULT\",\"ir\":{\"files\":100,\"declarations\":12000},\"analysisTimeMs\":84.95,\"maxRssBytes\":135741440,\"messageBytes\":456911}\n",
+        "stderr": "",
+        "elapsedMs": 815.22,
+        "result": { "type": "RESULT", "ir": { "files": 100, "declarations": 12000 }, "analysisTimeMs": 84.95, "maxRssBytes": 135741440, "messageBytes": 456911, "wallTimeMs": 815.22, "uiResponsiveness": { "timerTicks": 65, "maxDelayMs": 10.770833000000493 } }
+      },
+      "irEqual": true
+    }
+  },
+  "crashIsolation": { "workerExitCode": 42, "parentContinued": true, "restartSucceeded": true },
+  "utilityProcessCrashIsolation": { "utilityExitCode": 1, "parentContinued": true, "restartSucceeded": true },
+  "cancellation": { "workerThread": "CANCELLED", "utilityProcess": "CANCELLED", "scope": "pre-analysis acknowledgement only" },
+  "utilityProcessLifecycle": {
+    "type": "LIFECYCLE",
+    "heartbeats": 148,
+    "heartbeatMaxDelayMs": 23.078374999999937,
+    "heartbeatWindowStarted": true,
+    "heartbeatObservationCount": 130,
+    "heartbeatP95DelayMs": 2.282583000000045,
+    "ipcResponseCount": 39,
+    "ipcMaxRoundTripMs": 378.522875,
+    "ipcP95RoundTripMs": 357.938333,
+    "crashExitCode": 42,
+    "heartbeatContinued": true,
+    "restartedIr": { "files": 10, "declarations": 1200 },
+    "cancelled": true,
+    "cancelledDuringAnalysis": true,
+    "cancelRequested": true,
+    "cancelledBatchRejected": true,
+    "cancelledBatchSaveCount": 0,
+    "wallTimeMs": 1262.8,
+    "uiResponsiveness": { "timerTicks": 104, "maxDelayMs": 18.61237500000061 }
+  }
+}

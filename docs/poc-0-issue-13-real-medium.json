@@ -1,0 +1,124 @@
+{
+  "repository": "nto300002/keikakun_front",
+  "commit": "6664e5442bcc580885d216a332a3769a1bb18384",
+  "tsconfigPath": "tsconfig.p0-22.json",
+  "dirtyPaths": [
+    "tsconfig.p0-22.json"
+  ],
+  "measurementConfigSha256": "9aa9b9bc51e439bc40ceff7f1dcf10c55a481b050afc7a04dc1bd5bc5e64c0b7",
+  "auditContractPath": "docs/poc-0-issue-13-medium-expected-relations.json",
+  "auditContractSha256": "54c9df244cb07404bd6574b08bbea581a8a5fb652e1341823498ce05e92b5d36",
+  "auditScopes": [
+    {
+      "type": "IMPORTS",
+      "from": "lib/api/csrf.ts"
+    },
+    {
+      "type": "IMPORTS",
+      "from": "lib/csrf.ts"
+    },
+    {
+      "type": "REFERENCE_VALUE",
+      "from": "async (): Promise<string> => {\n    const@lib/api/csrf.ts:399"
+    },
+    {
+      "type": "CALLS",
+      "from": "async (): Promise<string> => {\n    const@lib/api/csrf.ts:399"
+    },
+    {
+      "type": "CALLS",
+      "from": "<file>@lib/http.ts:0"
+    }
+  ],
+  "measurement": {
+    "status": "COMPLETE",
+    "metrics": {
+      "loc": 28648,
+      "fileCount": 210,
+      "indexTimeMs": 796,
+      "analysisTimeMs": 4145,
+      "processMaxRSSBytes": 684654592,
+      "symbolCount": 734,
+      "relationCount": 22448,
+      "unknownCount": 2368
+    },
+    "environment": {
+      "nodeVersion": "v26.5.0",
+      "platform": "darwin",
+      "memoryMeasurement": "PROCESS_MAX_RSS_SINCE_START"
+    },
+    "partialFailures": [],
+    "accuracy": {
+      "tp": 6,
+      "fp": 0,
+      "fn": 0,
+      "unknown": 1,
+      "bySyntaxCategory": {
+        "IMPORT": 3,
+        "VALUE": 2,
+        "CALL": 2
+      },
+      "byReason": {
+        "UNRESOLVED_CALL_SIGNATURE": 1
+      }
+    },
+    "relationReview": [
+      {
+        "type": "IMPORTS",
+        "from": "lib/api/csrf.ts",
+        "to": "lib/http.ts:7373",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "IMPORTS",
+        "from": "lib/csrf.ts",
+        "to": "lib/api/csrf.ts:195",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "IMPORTS",
+        "from": "lib/csrf.ts",
+        "to": "lib/http.ts:224",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "REFERENCE_VALUE",
+        "from": "async (): Promise<string> => {\n    const@lib/api/csrf.ts:399",
+        "to": "response@lib/api/csrf.ts:440",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "VALUE",
+        "verdict": "TP"
+      },
+      {
+        "type": "REFERENCE_VALUE",
+        "from": "async (): Promise<string> => {\n    const@lib/api/csrf.ts:399",
+        "to": "CsrfTokenResponse.csrf_token@lib/api/csrf.ts:159",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "VALUE",
+        "verdict": "TP"
+      },
+      {
+        "type": "CALLS",
+        "from": "<file>@lib/http.ts:0",
+        "resolution": "UNKNOWN",
+        "reason": "UNRESOLVED_CALL_SIGNATURE",
+        "syntaxCategory": "CALL",
+        "verdict": "UNKNOWN"
+      },
+      {
+        "type": "CALLS",
+        "from": "async (): Promise<string> => {\n    const@lib/api/csrf.ts:399",
+        "to": "http.get@lib/http.ts:7384",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "CALL",
+        "verdict": "TP"
+      }
+    ]
+  }
+}

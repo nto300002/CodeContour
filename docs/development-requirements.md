@@ -730,13 +730,11 @@ MVP Issueは次を満たしたらCloseします。
 ```text
 Acceptance Criteria成立
 
-必須Automated Test Green
-
 既存Test Green
 
 Type Check Green
 
-Lint Green
+Build Green
 
 関連Fixture Test Green
 
@@ -932,25 +930,19 @@ Test codeをProduction codeの内部実装に過度に結合させません。
 
 ## 25. CI Gate
 
-PR時には、
+すべてのPull Requestで、共通Workflowが次を必須実行します。
 
 ```text
-Type Check
+npm test
 ↓
-Lint
+npm run typecheck
 ↓
-Domain Unit Tests
+npm run build:main
 ↓
-Analyzer Fixture Tests
-↓
-Persistence Integration Tests
-↓
-Architecture Tests
-↓
-Build
+npm run build:renderer
 ```
 
-を必須。
+`npm test`にはDomain、Analyzer Fixture、Persistence Integration、Architectureの自動テストを含めます。現在Lint用のコマンドや設定はないため、LintはGate要件に含めません。Lint導入時は、この文書と共通Workflowを同じ変更で更新します。
 
 E2Eは時間次第で、
 

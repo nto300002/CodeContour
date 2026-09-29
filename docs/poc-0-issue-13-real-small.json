@@ -1,0 +1,157 @@
+{
+  "repository": "nto300002/CodeContour",
+  "commit": "e90b325f841fc2d85e9c7ab93f76260850b4eca6",
+  "tsconfigPath": "tsconfig.json",
+  "dirtyPaths": [],
+  "measurementConfigSha256": "4613f45d0d5703d48e93a1290f9bc80bbb838a542ee7a8bb0c1605d60b77cc0f",
+  "auditContractPath": "docs/poc-0-issue-13-small-expected-relations.json",
+  "auditContractSha256": "3c20182338a6e349e8d6736d62fdf4b2ee9b3a1ff6e0d5677a78ee9d617a8b6d",
+  "auditScopes": [
+    {
+      "type": "IMPORTS",
+      "from": "src/data-flow-service.ts"
+    },
+    {
+      "type": "REFERENCE_TYPE",
+      "from": "DataFlowService.load@src/data-flow-service.ts:395"
+    },
+    {
+      "type": "REFERENCE_VALUE",
+      "from": "DataFlowService.load@src/data-flow-service.ts:395"
+    },
+    {
+      "type": "CALLS",
+      "from": "DataFlowService.load@src/data-flow-service.ts:395"
+    },
+    {
+      "type": "CALLS",
+      "from": "<file>@test/data-flow-service.test.ts:0"
+    }
+  ],
+  "measurement": {
+    "status": "COMPLETE",
+    "metrics": {
+      "loc": 2324,
+      "fileCount": 22,
+      "indexTimeMs": 407,
+      "analysisTimeMs": 1213,
+      "processMaxRSSBytes": 504496128,
+      "symbolCount": 144,
+      "relationCount": 5154,
+      "unknownCount": 1123
+    },
+    "environment": {
+      "nodeVersion": "v26.5.0",
+      "platform": "darwin",
+      "memoryMeasurement": "PROCESS_MAX_RSS_SINCE_START"
+    },
+    "partialFailures": [],
+    "accuracy": {
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "unknown": 1,
+      "bySyntaxCategory": {
+        "IMPORT": 6,
+        "TYPE": 1,
+        "VALUE": 2,
+        "CALL": 2
+      },
+      "byReason": {
+        "DECLARED_INTERFACE_MEMBER": 1,
+        "UNRESOLVED_ALIAS": 1
+      }
+    },
+    "relationReview": [
+      {
+        "type": "IMPORTS",
+        "from": "src/data-flow-service.ts",
+        "to": "src/symbol-index.ts:355",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "IMPORTS",
+        "from": "src/data-flow-service.ts",
+        "to": "src/feature-service.ts:695",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "IMPORTS",
+        "from": "src/data-flow-service.ts",
+        "to": "src/feature-service.ts:503",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "IMPORTS",
+        "from": "src/data-flow-service.ts",
+        "to": "src/feature-service.ts:1179",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "IMPORTS",
+        "from": "src/data-flow-service.ts",
+        "to": "src/feature-service.ts:889",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "IMPORTS",
+        "from": "src/data-flow-service.ts",
+        "to": "src/feature-service.ts:1071",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "IMPORT",
+        "verdict": "TP"
+      },
+      {
+        "type": "REFERENCE_TYPE",
+        "from": "DataFlowService.load@src/data-flow-service.ts:395",
+        "to": "UserModel@src/feature-service.ts:889",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "TYPE",
+        "verdict": "TP"
+      },
+      {
+        "type": "REFERENCE_VALUE",
+        "from": "DataFlowService.load@src/data-flow-service.ts:395",
+        "to": "DataFlowService.store@src/data-flow-service.ts:219",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "VALUE",
+        "verdict": "TP"
+      },
+      {
+        "type": "REFERENCE_VALUE",
+        "from": "DataFlowService.load@src/data-flow-service.ts:395",
+        "to": "UserModelStore.load@src/feature-service.ts:1107",
+        "resolution": "RESOLVED",
+        "syntaxCategory": "VALUE",
+        "verdict": "TP"
+      },
+      {
+        "type": "CALLS",
+        "from": "DataFlowService.load@src/data-flow-service.ts:395",
+        "to": "UserModelStore.load@src/feature-service.ts:1107",
+        "resolution": "INFERRED",
+        "reason": "DECLARED_INTERFACE_MEMBER",
+        "syntaxCategory": "CALL",
+        "verdict": "TP"
+      },
+      {
+        "type": "CALLS",
+        "from": "<file>@test/data-flow-service.test.ts:0",
+        "resolution": "UNKNOWN",
+        "reason": "UNRESOLVED_ALIAS",
+        "syntaxCategory": "CALL",
+        "verdict": "UNKNOWN"
+      }
+    ]
+  }
+}

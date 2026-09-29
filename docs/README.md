@@ -12,7 +12,8 @@ CodeContourの設計・要件ドキュメントです。要件はテーマ別の
 6. [PoC-0正式仕様](poc-0-spec.md)
 7. [Architecture Spike Plan](architecture-spike-plan.md)
 8. [Development Requirements v1.0](development-requirements.md)
-9. 必要なテーマ別仕様
+9. [Issue Review Criteria v1.0](issue-review.md)
+10. 必要なテーマ別仕様
 
 ## テーマ別仕様
 
@@ -26,6 +27,8 @@ CodeContourの設計・要件ドキュメントです。要件はテーマ別の
 | [poc-0-spec.md](poc-0-spec.md) | PoC-0のIN / OUT、Gate、Fixture、計測、Go / No-Go |
 | [architecture-spike-plan.md](architecture-spike-plan.md) | Analyzer ExecutorとSQLite Driverの比較・選定Gate |
 | [development-requirements.md](development-requirements.md) | TDD、テスト階層、Issue、CI Gate、Definition of Ready / Done |
+| [issue-review.md](issue-review.md) | Issue完了時の7軸レビュー、振り返りテンプレート、GO判定 |
+| [ADR-003-sqlite-source-of-truth.md](ADR-003-sqlite-source-of-truth.md) | MVP永続データの正本、Main Write境界、JSON移行とRollback |
 | [domain-model.md](domain-model.md) | 状態モデル、Entity、Cardinality、Event、Sequence |
 | [context-and-ai.md](context-and-ai.md) | Feature Context、AI境界、User Context、Proposal |
 | [git-and-staleness.md](git-and-staleness.md) | Git時間軸、変更追跡、STALE伝播 |
@@ -44,5 +47,6 @@ CodeContourの設計・要件ドキュメントです。要件はテーマ別の
 - PoC-0の範囲と成功判定では[PoC-0正式仕様](poc-0-spec.md)を優先します。
 - Analyzer ExecutorとSQLite Driverの選定では[Architecture Spike Plan](architecture-spike-plan.md)を優先します。
 - MVPの開発方式、テスト、Issue、CI、完了判定では[Development Requirements](development-requirements.md)を優先します。
+- Issue完了時のレビュー基準、振り返り、GO判定では[Issue Review Criteria](issue-review.md)を優先します。
 - 具体的な振る舞い・状態・境界は各テーマ別仕様を正規仕様とします。
 - [requirements-draft.md](requirements-draft.md)は旧URL互換用の案内ページであり、要件本文の正本ではありません。

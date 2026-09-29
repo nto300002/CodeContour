@@ -1,0 +1,126 @@
+{
+  "reports": [
+    {
+      "repository": "small",
+      "result": {
+        "status": "COMPLETE",
+        "metrics": {
+          "loc": 1202,
+          "fileCount": 10,
+          "indexTimeMs": 361,
+          "analysisTimeMs": 693,
+          "processMaxRSSBytes": 441352192,
+          "symbolCount": 1201,
+          "relationCount": 3,
+          "unknownCount": 1
+        },
+        "environment": {
+          "nodeVersion": "v26.5.0",
+          "platform": "darwin",
+          "memoryMeasurement": "PROCESS_MAX_RSS_SINCE_START"
+        },
+        "partialFailures": [],
+        "accuracy": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "unknown": 1,
+          "bySyntaxCategory": {
+            "CALL": 2,
+            "VALUE": 1
+          },
+          "byReason": {
+            "DYNAMIC_PROPERTY_ACCESS": 1
+          }
+        },
+        "relationReview": [
+          {
+            "type": "REFERENCE_VALUE",
+            "from": "callKnown@src/file-0.ts:4700",
+            "to": "f0_0@src/file-0.ts:0",
+            "resolution": "RESOLVED",
+            "syntaxCategory": "VALUE",
+            "verdict": "TP"
+          },
+          {
+            "type": "CALLS",
+            "from": "callKnown@src/file-0.ts:4700",
+            "to": "f0_0@src/file-0.ts:0",
+            "resolution": "RESOLVED",
+            "syntaxCategory": "CALL",
+            "verdict": "TP"
+          },
+          {
+            "type": "CALLS",
+            "from": "<file>@src/file-0.ts:0",
+            "resolution": "UNKNOWN",
+            "reason": "DYNAMIC_PROPERTY_ACCESS",
+            "syntaxCategory": "CALL",
+            "verdict": "UNKNOWN"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "medium",
+      "result": {
+        "status": "COMPLETE",
+        "metrics": {
+          "loc": 12002,
+          "fileCount": 100,
+          "indexTimeMs": 383,
+          "analysisTimeMs": 823,
+          "processMaxRSSBytes": 680378368,
+          "symbolCount": 12001,
+          "relationCount": 3,
+          "unknownCount": 1
+        },
+        "environment": {
+          "nodeVersion": "v26.5.0",
+          "platform": "darwin",
+          "memoryMeasurement": "PROCESS_MAX_RSS_SINCE_START"
+        },
+        "partialFailures": [],
+        "accuracy": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "unknown": 1,
+          "bySyntaxCategory": {
+            "CALL": 2,
+            "VALUE": 1
+          },
+          "byReason": {
+            "DYNAMIC_PROPERTY_ACCESS": 1
+          }
+        },
+        "relationReview": [
+          {
+            "type": "REFERENCE_VALUE",
+            "from": "callKnown@src/file-0.ts:4700",
+            "to": "f0_0@src/file-0.ts:0",
+            "resolution": "RESOLVED",
+            "syntaxCategory": "VALUE",
+            "verdict": "TP"
+          },
+          {
+            "type": "CALLS",
+            "from": "callKnown@src/file-0.ts:4700",
+            "to": "f0_0@src/file-0.ts:0",
+            "resolution": "RESOLVED",
+            "syntaxCategory": "CALL",
+            "verdict": "TP"
+          },
+          {
+            "type": "CALLS",
+            "from": "<file>@src/file-0.ts:0",
+            "resolution": "UNKNOWN",
+            "reason": "DYNAMIC_PROPERTY_ACCESS",
+            "syntaxCategory": "CALL",
+            "verdict": "UNKNOWN"
+          }
+        ]
+      }
+    }
+  ]
+}

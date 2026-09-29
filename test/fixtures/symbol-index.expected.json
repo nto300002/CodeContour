@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "FUNCTION",
+    "name": "expected",
+    "qualifiedName": "expected",
+    "relativePath": "src/main.ts",
+    "signature": "(input: string): number"
+  }
+]

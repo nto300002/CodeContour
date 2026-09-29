@@ -1,0 +1,20 @@
+{
+  "repository": "nto300002/keikakun_front",
+  "commit": "6664e5442bcc580885d216a332a3769a1bb18384",
+  "auditScopes": [
+    {"type":"IMPORTS","from":"lib/api/csrf.ts"},
+    {"type":"IMPORTS","from":"lib/csrf.ts"},
+    {"type":"REFERENCE_VALUE","from":"async (): Promise<string> => {\n    const@lib/api/csrf.ts:399"},
+    {"type":"CALLS","from":"async (): Promise<string> => {\n    const@lib/api/csrf.ts:399"},
+    {"type":"CALLS","from":"<file>@lib/http.ts:0"}
+  ],
+  "expectedRelations": [
+  {"type":"IMPORTS","from":"lib/api/csrf.ts","to":"lib/http.ts:7373","resolution":"RESOLVED","syntaxCategory":"IMPORT"},
+  {"type":"IMPORTS","from":"lib/csrf.ts","to":"lib/api/csrf.ts:195","resolution":"RESOLVED","syntaxCategory":"IMPORT"},
+  {"type":"IMPORTS","from":"lib/csrf.ts","to":"lib/http.ts:224","resolution":"RESOLVED","syntaxCategory":"IMPORT"},
+  {"type":"REFERENCE_VALUE","from":"async (): Promise<string> => {\n    const@lib/api/csrf.ts:399","to":"response@lib/api/csrf.ts:440","resolution":"RESOLVED","syntaxCategory":"VALUE"},
+  {"type":"REFERENCE_VALUE","from":"async (): Promise<string> => {\n    const@lib/api/csrf.ts:399","to":"CsrfTokenResponse.csrf_token@lib/api/csrf.ts:159","resolution":"RESOLVED","syntaxCategory":"VALUE"},
+  {"type":"CALLS","from":"async (): Promise<string> => {\n    const@lib/api/csrf.ts:399","to":"http.get@lib/http.ts:7384","resolution":"RESOLVED","syntaxCategory":"CALL"},
+  {"type":"CALLS","from":"<file>@lib/http.ts:0","resolution":"UNKNOWN","reason":"UNRESOLVED_CALL_SIGNATURE","syntaxCategory":"CALL"}
+  ]
+}
