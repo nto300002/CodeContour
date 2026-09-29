@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadTypeScriptProject } from "../src/repository-reader.js";
 
@@ -39,6 +39,17 @@ describe("loadTypeScriptProject", () => {
     expect(result).toMatchObject({ ok: true, files: ["src/App.tsx", "src/index.ts"] });
   });
 
+  it("respects an explicitly empty include list", async () => {
+    const root = await createRepository({
+      "tsconfig.json": JSON.stringify({ include: [] }),
+      "src/index.ts": "export const answer = 42;",
+    });
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "TSCONFIG_PARSE_ERROR" } });
+  });
+
   it("honors extends, baseUrl, paths, moduleResolution, and files", async () => {
     const root = await createRepository({
       "tsconfig.base.json": JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["src/*"] }, moduleResolution: "Node" } }),
@@ -62,8 +73,8 @@ describe("loadTypeScriptProject", () => {
     expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
   });
 
-  it("does not index a symlink whose real path is outside the repository root", async () => {
-    const root = await createRepository({ "tsconfig.json": JSON.stringify({ include: ["src"] }) });
+  it("does not index a file symlink whose real path is outside the repository root", async () => {
+    const root = await createRepository({ "tsconfig.json": JSON.stringify({ include: ["src"] }), "src/main.ts": "export const visible = true;" });
     const external = await createRepository({ "external.ts": "export const secret = true;" });
     await mkdir(join(root, "src"), { recursive: true });
     await symlink(join(external, "external.ts"), join(root, "src", "external.ts"));
@@ -72,7 +83,7 @@ describe("loadTypeScriptProject", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      files: [],
+      files: ["src/main.ts"],
       skippedFiles: [{ path: "src/external.ts", reason: "PATH_OUTSIDE_ROOT" }],
     });
   });
@@ -96,18 +107,60 @@ describe("loadTypeScriptProject", () => {
     expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
   });
 
-  it("returns an observable exclusion for an out-of-root file declared by tsconfig", async () => {
-    const root = await createRepository({ "tsconfig.json": JSON.stringify({ files: ["../outside.ts"] }) });
+  it("rejects an out-of-root file declared by tsconfig before parsing file names", async () => {
+    const root = await createRepository({ "tsconfig.json": "{}" });
     const external = await createRepository({ "outside.ts": "export const outside = true;" });
+    await writeFile(join(root, "tsconfig.json"), JSON.stringify({ files: [relative(root, join(external, "outside.ts"))] }));
 
     const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
 
-    expect(result).toMatchObject({
-      ok: true,
-      files: [],
-      skippedFiles: [{ path: "../outside.ts", reason: "PATH_OUTSIDE_ROOT" }],
-    });
-    expect(external).toBeTruthy();
+    expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
+  });
+
+  it.each([
+    ["include glob", (root: string, external: string) => ({ include: [`${relative(root, external)}/**/*.ts`] })],
+    ["files entry", (root: string, external: string) => ({ files: [relative(root, join(external, "outside.ts"))] })],
+    ["project reference", (root: string, external: string) => ({ references: [{ path: relative(root, external) }] })],
+  ])("fails closed when tsconfig %s points outside the repository root", async (_case, makeConfig) => {
+    const root = await createRepository({ "tsconfig.json": "{}" });
+    const external = await createRepository({ "outside.ts": "export const outside = true;", "tsconfig.json": "{}" });
+    await writeFile(join(root, "tsconfig.json"), JSON.stringify(makeConfig(root, external)));
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
+  });
+
+  it("fails closed when a tsconfig glob traverses an external directory symlink", async () => {
+    const root = await createRepository({ "tsconfig.json": JSON.stringify({ include: ["src/linked/**/*.ts"] }) });
+    const external = await createRepository({ "outside.ts": "export const outside = true;" });
+    await mkdir(join(root, "src"), { recursive: true });
+    await symlink(external, join(root, "src", "linked"));
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
+  });
+
+  it("does not traverse an external directory symlink found below a parent glob", async () => {
+    const root = await createRepository({ "tsconfig.json": JSON.stringify({ include: ["src/**/*.ts"] }) });
+    const external = await createRepository({ "outside.ts": "export const outside = true;" });
+    await mkdir(join(root, "src"), { recursive: true });
+    await symlink(external, join(root, "src", "linked"));
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
+  });
+
+  it("fails closed when a tsconfig files entry uses an absolute path outside the repository", async () => {
+    const root = await createRepository({ "tsconfig.json": "{}" });
+    const external = await createRepository({ "outside.ts": "export const outside = true;" });
+    await writeFile(join(root, "tsconfig.json"), JSON.stringify({ files: [join(external, "outside.ts")] }));
+
+    const result = await loadTypeScriptProject({ repositoryRoot: root, tsconfigPath: "tsconfig.json" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "PATH_OUTSIDE_ROOT" } });
   });
 
   it("applies .gitignore to the application index", async () => {

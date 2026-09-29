@@ -1,6 +1,8 @@
 import { realpath, readFile } from "node:fs/promises";
+import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import ignore from "ignore";
+import picomatch from "picomatch";
 import ts from "typescript";
 
 export type RepositoryReaderErrorCode =
@@ -115,7 +117,127 @@ function configError(code: RepositoryReaderErrorCode, message: string): Reposito
   return { ok: false, error: { code, message } };
 }
 
+function validateConfigPath(root: string, configPath: string, configuredPath: string): RepositoryReaderResult | undefined {
+  const absolutePath = resolve(dirname(configPath), configuredPath);
+  if (!isWithinRoot(root, absolutePath)) {
+    return configError("PATH_OUTSIDE_ROOT", "Every tsconfig file pattern and project reference must stay inside the repository root.");
+  }
+
+  const globIndex = absolutePath.search(/[?*[{]/);
+  let existingPrefix = globIndex < 0 ? absolutePath : absolutePath.slice(0, globIndex).replace(/[\\/]$/, "");
+  if (!existingPrefix) existingPrefix = dirname(configPath);
+  while (!existsSync(existingPrefix)) {
+    const parent = dirname(existingPrefix);
+    if (parent === existingPrefix) return undefined;
+    existingPrefix = parent;
+  }
+  try {
+    if (!isWithinRoot(root, realpathSync(existingPrefix))) {
+      return configError("PATH_OUTSIDE_ROOT", "Every tsconfig file pattern and project reference must resolve inside the repository root.");
+    }
+  } catch {
+    return configError("TSCONFIG_PARSE_ERROR", "A tsconfig file pattern or project reference cannot be resolved safely.");
+  }
+  return undefined;
+}
+
+function validateConfigPathOptions(root: string, configPath: string, config: unknown): RepositoryReaderResult | undefined {
+  if (typeof config !== "object" || config === null) return undefined;
+  const value = config as { files?: unknown; include?: unknown; exclude?: unknown; references?: unknown };
+  for (const option of [value.files, value.include, value.exclude]) {
+    if (!Array.isArray(option)) continue;
+    for (const path of option) {
+      if (typeof path !== "string") continue;
+      const error = validateConfigPath(root, configPath, path);
+      if (error) return error;
+    }
+  }
+  if (Array.isArray(value.references)) {
+    for (const reference of value.references) {
+      if (typeof reference !== "object" || reference === null || !("path" in reference) || typeof reference.path !== "string") continue;
+      const error = validateConfigPath(root, configPath, reference.path);
+      if (error) return error;
+    }
+  }
+  return undefined;
+}
+
+function readConfigDirectory(root: string, path: string, extensions: readonly string[], excludes: readonly string[] | undefined, includes: readonly string[] | undefined, depth: number | undefined, onBoundaryViolation: () => void, onReadFailure: () => void): string[] {
+  const requestedDirectory = resolve(path);
+  const caseSensitive = ts.sys.useCaseSensitiveFileNames;
+  const normalize = (value: string) => value.split(sep).join("/");
+  const makeMatcher = (pattern: string) => picomatch(normalize(pattern), { dot: true, nocase: !caseSensitive });
+  const globCharacters = /[*?{[]/;
+  const includeMatchers = (includes ?? []).map((pattern) => ({ pattern: normalize(pattern), matcher: makeMatcher(pattern) }));
+  const excludeMatchers = (excludes ?? []).map((pattern) => ({ pattern: normalize(pattern), matcher: makeMatcher(pattern) }));
+  const hasIncludeRestriction = includes !== undefined;
+  const matchesDirectoryRule = (candidate: string, rule: { pattern: string; matcher: (path: string) => boolean }) => {
+    const normalizedCandidate = normalize(candidate);
+    if (rule.matcher(normalizedCandidate)) return true;
+    // TypeScript treats a literal directory in include/exclude as a recursive
+    // directory selection, while a literal file remains an exact match.
+    if (!globCharacters.test(rule.pattern) && !extname(rule.pattern)) {
+      return normalizedCandidate.startsWith(`${rule.pattern.replace(/\/$/, "")}/`);
+    }
+    return false;
+  };
+  const isExcluded = (candidate: string) => excludeMatchers.some((rule) => matchesDirectoryRule(candidate, rule));
+  const isIncluded = (candidate: string) => !hasIncludeRestriction || includeMatchers.some((rule) => matchesDirectoryRule(candidate, rule));
+  const couldIncludeDescendant = (directory: string) => !hasIncludeRestriction || includeMatchers.some(({ pattern }) => {
+    const fixedPrefix = normalize(pattern).split(/[?*{[]/, 1)[0].replace(/\/$/, "");
+    return !fixedPrefix || fixedPrefix === directory || fixedPrefix.startsWith(`${directory}/`) || directory.startsWith(`${fixedPrefix}/`);
+  });
+  const results: string[] = [];
+  const visit = (directory: string, currentDepth: number): void => {
+    const canonicalDirectory = realpathSync(directory);
+    if (!isWithinRoot(root, directory) || !isWithinRoot(root, canonicalDirectory)) {
+      onBoundaryViolation();
+      return;
+    }
+    const logicalDirectory = normalize(relative(requestedDirectory, directory));
+    if (logicalDirectory && (isPermanentlyIgnored(logicalDirectory) || isExcluded(logicalDirectory))) return;
+
+    let entries;
+    try { entries = readdirSync(directory, { withFileTypes: true }); }
+    catch { onReadFailure(); return; }
+
+    for (const entry of entries) {
+      const entryPath = resolve(directory, entry.name);
+      const logicalPath = normalize(relative(requestedDirectory, entryPath));
+      if (isPermanentlyIgnored(logicalPath) || isExcluded(logicalPath)) continue;
+      if (entry.isSymbolicLink()) {
+        let canonicalEntry: string;
+        try { canonicalEntry = realpathSync(entryPath); }
+        catch { continue; }
+        let entryStat;
+        try { entryStat = statSync(entryPath); }
+        catch { continue; }
+        if (!isWithinRoot(root, canonicalEntry)) {
+          if (entryStat.isDirectory() && couldIncludeDescendant(logicalPath)) onBoundaryViolation();
+          else if (entryStat.isFile() && extensions.includes(extname(entry.name)) && isIncluded(logicalPath)) results.push(entryPath);
+          continue;
+        }
+        if (entryStat.isDirectory()) {
+          if (depth === undefined || currentDepth < depth) visit(entryPath, currentDepth + 1);
+        } else if (entryStat.isFile() && extensions.includes(extname(entry.name)) && isIncluded(logicalPath)) results.push(entryPath);
+        continue;
+      }
+      if (entry.isDirectory()) {
+        if (depth === undefined || currentDepth < depth) visit(entryPath, currentDepth + 1);
+      } else if (entry.isFile() && extensions.includes(extname(entry.name)) && isIncluded(logicalPath)) {
+        results.push(entryPath);
+      }
+    }
+  };
+
+  try { visit(requestedDirectory, 0); }
+  catch { onReadFailure(); return []; }
+  return results;
+}
+
 async function validateExtendsChain(root: string, configPath: string, config: unknown, visited = new Set<string>()): Promise<RepositoryReaderResult | undefined> {
+  const pathsError = validateConfigPathOptions(root, configPath, config);
+  if (pathsError) return pathsError;
   if (typeof config !== "object" || config === null || !("extends" in config)) return undefined;
   const extendedConfig = (config as { extends?: unknown }).extends;
   const extendsPaths = typeof extendedConfig === "string"
@@ -182,7 +304,46 @@ export async function loadTypeScriptProject(input: LoadTypeScriptProjectInput): 
   const extendsError = await validateExtendsChain(root, configPath, config.config, new Set([configPath]));
   if (extendsError) return extendsError;
 
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root, undefined, configPath);
+  let configBoundaryViolated = false;
+  let configReadFailed = false;
+  const configHost: ts.ParseConfigHost = {
+    useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
+    readDirectory: (path, extensions, excludes, includes, depth) => {
+      const requestedDirectory = resolve(path);
+      if (!isWithinRoot(root, requestedDirectory)) { configBoundaryViolated = true; return []; }
+      return readConfigDirectory(
+        root,
+        requestedDirectory,
+        extensions,
+        excludes,
+        includes,
+        depth,
+        () => { configBoundaryViolated = true; },
+        () => { configReadFailed = true; },
+      );
+    },
+    fileExists: (path) => {
+      const requestedFile = resolve(path);
+      if (!isWithinRoot(root, requestedFile)) { configBoundaryViolated = true; return false; }
+      try {
+        if (!isWithinRoot(root, realpathSync(requestedFile))) return false;
+        return ts.sys.fileExists(requestedFile);
+      }
+      catch { return false; }
+    },
+    readFile: (path) => {
+      const requestedFile = resolve(path);
+      if (!isWithinRoot(root, requestedFile)) { configBoundaryViolated = true; return undefined; }
+      try {
+        if (!isWithinRoot(root, realpathSync(requestedFile))) return undefined;
+        return ts.sys.readFile(requestedFile);
+      }
+      catch { return undefined; }
+    },
+  };
+  const parsed = ts.parseJsonConfigFileContent(config.config, configHost, root, undefined, configPath);
+  if (configBoundaryViolated) return configError("PATH_OUTSIDE_ROOT", "TypeScript config expansion attempted to access a path outside the repository root.");
+  if (configReadFailed) return configError("REPOSITORY_READ_ERROR", "A directory selected by the TypeScript config cannot be read safely.");
   if (parsed.errors.length > 0) {
     return configError("TSCONFIG_PARSE_ERROR", ts.flattenDiagnosticMessageText(parsed.errors[0].messageText, "\n"));
   }
