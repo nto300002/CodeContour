@@ -4,10 +4,10 @@ import { EmptyState } from "./status-states.js";
 export interface FeatureMapFeature { id: string; name: string; confirmation: "CANDIDATE" | "CONFIRMED"; lifecycle: "ACTIVE" | "ARCHIVED"; freshness: "CURRENT" | "PARTIALLY_STALE" | "STALE"; processCount: number; codeRefCount: number; explanationCount: number; }
 export interface FeatureMapRelation { id: string; fromFeatureId: string; toFeatureId: string; label: string; }
 
-export function FeatureMapCanvas({ features, relations, selectedFeatureId, onSelect, onCreate }: { features: readonly FeatureMapFeature[]; relations: readonly FeatureMapRelation[]; selectedFeatureId?: string; onSelect: (feature: FeatureMapFeature) => void; onCreate: (name: string) => void }) {
+export function FeatureMapCanvas({ features, relations, selectedFeatureId, onSelect, onCreate }: { features: readonly FeatureMapFeature[]; relations: readonly FeatureMapRelation[]; selectedFeatureId?: string; onSelect: (feature: FeatureMapFeature) => void; onCreate: (name: string) => void | Promise<boolean> }) {
   const [name, setName] = useState("");
   const byId = new Map(features.map((feature) => [feature.id, feature]));
-  const create = () => { onCreate(name); setName(""); };
+  const create = async () => { if (await onCreate(name) !== false) setName(""); };
   return <section aria-label="Feature Map canvas">
     <h1>Feature Map</h1>
     {features.length === 0 && <EmptyState action="Create the first Feature to begin mapping the project." description="No Features have been created for this Project." title="No features" />}
@@ -22,12 +22,12 @@ export function FeatureMapCanvas({ features, relations, selectedFeatureId, onSel
   </section>;
 }
 
-export function FeatureMapInspector({ feature, onEdit, onArchive, onViewFlow }: { feature?: FeatureMapFeature; onEdit: (name: string) => void; onArchive: () => void; onViewFlow: () => void }) {
+export function FeatureMapInspector({ feature, onEdit, onArchive, onViewFlow, readOnly = false }: { feature?: FeatureMapFeature; onEdit: (name: string) => void; onArchive: () => void; onViewFlow: () => void; readOnly?: boolean }) {
   const [name, setName] = useState(feature?.name ?? "");
   useEffect(() => setName(feature?.name ?? ""), [feature?.id, feature?.name]);
   if (!feature) return <section aria-label="Feature Map inspector"><p>No Feature selected.</p></section>;
   return <section aria-label="Feature Map inspector"><h2>{feature.name}</h2><p>Process count: {feature.processCount}</p><p>Code ref count: {feature.codeRefCount}</p><p>Explanation count: {feature.explanationCount}</p>
-    <label>Edit feature name<input aria-label="Edit feature name" onChange={(event) => setName(event.target.value)} value={name} /></label><button disabled={!name.trim()} onClick={() => onEdit(name)} type="button">Save feature name</button>
-    <button disabled={feature.lifecycle === "ARCHIVED"} onClick={onArchive} type="button">Archive feature</button><button onClick={onViewFlow} type="button">View {feature.name} flow</button>
+    {!readOnly && <><label>Edit feature name<input aria-label="Edit feature name" onChange={(event) => setName(event.target.value)} value={name} /></label><button disabled={!name.trim()} onClick={() => onEdit(name)} type="button">Save feature name</button>
+    <button disabled={feature.lifecycle === "ARCHIVED"} onClick={onArchive} type="button">Archive feature</button></>}<button onClick={onViewFlow} type="button">View {feature.name} flow</button>
   </section>;
 }

@@ -7,6 +7,7 @@ export interface Feature {
   name: string;
   origin: "USER";
   confirmation: "CONFIRMED";
+  lifecycle?: "ACTIVE" | "ARCHIVED";
 }
 
 export interface ProcessStep { id: string; name: string; order: number; }
@@ -16,6 +17,7 @@ export interface Process {
   name: string;
   origin: "USER";
   confirmation: "CONFIRMED";
+  order?: number;
   steps: ProcessStep[];
 }
 export interface ProcessSymbolLink {
@@ -36,6 +38,7 @@ export interface UserModel {
 export interface UserModelStore {
   load(): Promise<UserModel>;
   save(model: UserModel): Promise<void>;
+  update?(mutate: (current: UserModel) => UserModel): Promise<UserModel>;
 }
 
 export interface SelectedProject {
@@ -52,6 +55,7 @@ export async function loadSelectedProject(input: {
   return { id: input.id, repositoryLoaded: result.ok };
 }
 
+/** Legacy JSON reader and PoC fixture only. Production writes belong to Main's SQLite store. */
 export class UserModelFileStore implements UserModelStore {
   constructor(private readonly filePath: string, private readonly projectId: string) {}
 
@@ -91,9 +95,12 @@ export class FeatureService {
     if (!this.project.repositoryLoaded) return { ok: false, error: { code: "PROJECT_NOT_READY" } };
     const normalizedName = name.trim();
     if (!normalizedName) return { ok: false, error: { code: "NAME_REQUIRED" } };
-    const model = await this.store.load();
     const feature: Feature = { id: this.createId(), name: normalizedName, origin: "USER", confirmation: "CONFIRMED" };
-    await this.store.save({ ...model, features: [...model.features, feature] });
+    if (this.store.update) await this.store.update((model) => ({ ...model, features: [...model.features, feature] }));
+    else {
+      const model = await this.store.load();
+      await this.store.save({ ...model, features: [...model.features, feature] });
+    }
     return { ok: true, feature };
   }
 }
@@ -127,7 +134,8 @@ function isUserModel(value: unknown): value is UserModel {
   return model.version === 1 && typeof model.projectId === "string" && Array.isArray(model.features)
     && model.features.every((feature) => typeof feature === "object" && feature !== null
       && typeof (feature as Feature).id === "string" && typeof (feature as Feature).name === "string"
-      && (feature as Feature).origin === "USER" && (feature as Feature).confirmation === "CONFIRMED")
+      && (feature as Feature).origin === "USER" && (feature as Feature).confirmation === "CONFIRMED"
+      && ((feature as Feature).lifecycle === undefined || (feature as Feature).lifecycle === "ACTIVE" || (feature as Feature).lifecycle === "ARCHIVED"))
     && (model.processes === undefined || Array.isArray(model.processes) && model.processes.every(isProcess))
     && (model.processSymbolLinks === undefined || Array.isArray(model.processSymbolLinks) && model.processSymbolLinks.every(isProcessSymbolLink))
     && (model.dataFlows === undefined || Array.isArray(model.dataFlows) && model.dataFlows.every(isDataFlow));
@@ -146,6 +154,7 @@ function isProcess(value: unknown): value is Process {
   const process = value as Partial<Process>;
   return typeof process.id === "string" && typeof process.featureId === "string" && typeof process.name === "string"
     && process.origin === "USER" && process.confirmation === "CONFIRMED" && Array.isArray(process.steps)
+    && (process.order === undefined || Number.isInteger(process.order) && process.order >= 0)
     && process.steps.every((step) => typeof step === "object" && step !== null
       && typeof (step as ProcessStep).id === "string" && typeof (step as ProcessStep).name === "string"
       && typeof (step as ProcessStep).order === "number");

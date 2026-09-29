@@ -11,10 +11,6 @@ export interface RepositorySetupApi {
   validate(input: { repositoryRoot: string; tsconfigPath: string }): Promise<RepositorySetupValidation>;
 }
 
-declare global {
-  interface Window { codeContour?: { repositorySetup?: RepositorySetupApi; initialAnalysis?: InitialAnalysisApi }; }
-}
-
 const unavailableApi: RepositorySetupApi = {
   pickRoot: async () => undefined,
   pickTsconfig: async () => undefined,
